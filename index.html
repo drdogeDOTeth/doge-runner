@@ -893,7 +893,7 @@ function paintSpeedway(){
 
 /* ================= GAME STATE ================= */
 const G={
-  mode:'title', t:0, stateT:0, level:1,
+  mode:'title', t:0, stateT:0, level:1, selLevel:0, startIdx:0,
   lives:4, hearts:2, bananas:0, letters:new Set(), time:0,
   P:null, enemies:[], bananasLeft:[], bunches:[], lettersLeft:[],
   fx:[], camX:0, camY:20, cp:false, starHit:false,
@@ -918,7 +918,7 @@ function spawnEnemies(){
   });
 }
 function startLevel(freshLetters){
-  loadLevel((G.level-1)%LEVELS.length);
+  loadLevel((G.startIdx+G.level-1)%LEVELS.length);
   resetPlayer(false); G.cp=false; G.starHit=false;
   spawnEnemies();
   G.bananasLeft=buildBananas();
@@ -930,6 +930,7 @@ function startLevel(freshLetters){
 }
 function newGame(){
   G.level=1; G.lives=4; G.bananas=0;
+  G.startIdx=G.selLevel;
   startLevel(true);
 }
 function respawn(){
@@ -943,6 +944,11 @@ addEventListener('keydown',e=>{
   const k=e.code;
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(k)) e.preventDefault();
   ensureAudio();
+  if(G.mode==='title'&&!e.repeat&&(k==='ArrowLeft'||k==='KeyA'||k==='ArrowRight'||k==='KeyD')){
+    G.selLevel=(G.selLevel+((k==='ArrowLeft'||k==='KeyA')?-1:1)+LEVELS.length)%LEVELS.length;
+    loadLevel(G.selLevel); // preview the zone behind the title
+    sfx.banana();
+  }
   if(k==='ArrowLeft'||k==='KeyA')G.keys.L=true;
   if(k==='ArrowRight'||k==='KeyD')G.keys.R=true;
   if((k==='Space'||k==='KeyZ')&&!e.repeat){ G.keys.J=true; G.keys.Jheld=true; if(G.P)G.P.jbuf=7; }
@@ -1535,8 +1541,9 @@ function drawTitle(){
   ctext('RUNNER',64,'#4db34d',16);
   ctext('JUNGLE - PIPES - EMERALD ZONES',92,'#fff',6);
   if((G.stateT&63)<44) ctext('PRESS ENTER TO PLAY',118,'#fff',7);
-  ctext('DROP A .VRM OR .GLB FILE',146,'#cdd',5);
-  ctext('TO PLAY AS YOUR OWN AVATAR',156,'#cdd',5);
+  ctext('ZONE: < '+LEVELS[G.selLevel].name+' >',136,'#ffd23e',6);
+  ctext('DROP A .VRM OR .GLB FILE',150,'#cdd',5);
+  ctext('TO PLAY AS YOUR OWN AVATAR',160,'#cdd',5);
   ctext('RUN: A/D  JUMP: SPACE (2X!)  ROLL: SHIFT',176,'#9ab',5);
   const fr=HERO.frames[['run1','run2','run3','run4'][(G.stateT>>3)%4]];
   ctx.save(); ctx.translate(160,206-HERO.h); ctx.drawImage(fr,-HERO.w/2|0,0); ctx.restore();
@@ -1555,7 +1562,7 @@ function loop(ts){
 }
 requestAnimationFrame(loop);
 window.DKC.step=(n=1)=>{for(let i=0;i<n;i++)update();};
-window.DKC.go=n=>{G.level=n; startLevel(true);}; // debug: jump to level n
+window.DKC.go=n=>{G.startIdx=0; G.level=n; startLevel(true);}; // debug: jump to level n
 loadLevel(0); // paint the title-screen background
 
 /* ============================================================
@@ -1745,7 +1752,12 @@ async function generateAvatar(file,slot='hero'){
   root.updateMatrixWorld(true);
   const box=new THREE.Box3().setFromObject(root);
   const size=box.getSize(new THREE.Vector3());
-  const s=spec.mh/Math.max(size.y,0.001);
+  // props (no humanoid rig) face the camera along their longest axis
+  const faceRot=(!poser.hasArms&&size.x>size.z*1.4)?0:Math.PI/2;
+  const hx=Math.max(faceRot===0?size.x:size.z,0.001);
+  const fitW=spec.wh*spec.w/spec.h;
+  // fit BOTH height and width so wide models (cars, critters) aren't cut off
+  const s=Math.min(spec.mh/Math.max(size.y,0.001),(fitW*0.94)/hx);
   inner.scale.setScalar(s);
   const ctr=box.getCenter(new THREE.Vector3());
   inner.position.set(-ctr.x*s,-box.min.y*s,-ctr.z*s);
@@ -1759,12 +1771,14 @@ async function generateAvatar(file,slot='hero'){
   cam.position.set(0,0,6);
 
   const frames={};
+  let fi=0;
   for(const name of spec.frames){
-    group.rotation.y=0;
+    group.rotation.y=0; group.rotation.z=0;
     poser.reset();
     if(poser.hasArms){ scene.updateMatrixWorld(true); poser.POSES[name](); }
     if(vrm) vrm.humanoid.update();
-    group.rotation.y=Math.PI/2; // profile, facing +X (screen right)
+    group.rotation.y=faceRot; // profile, facing screen right
+    group.rotation.z=poser.hasArms?0:((fi++%2)?-0.06:0.06); // unrigged props get a waddle
     scene.updateMatrixWorld(true);
     renderer.render(scene,cam);
     const c=cv(SW,SH);

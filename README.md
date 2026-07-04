@@ -30,6 +30,7 @@ then open http://localhost:4173.
 
 ## How to play
 
+- On the title screen, press **A / D** to pick your starting zone, then **ENTER**.
 - **A D** run (arrows work too) &nbsp; **SPACE** jump (hold for height, press again mid-air to double jump)
 - **SHIFT / X** roll attack &nbsp; **P** pause &nbsp; **M** mute
 - Stomp or roll the critters; never touch the spiky ones.
@@ -43,5 +44,8 @@ then open http://localhost:4173.
 Drop a `.vrm` or `.glb` anywhere on either page. The model's skeleton is procedurally posed
 (idle, 4-frame run, jump, fall, roll, victory, hurt) and rasterized into outlined pixel
 sprites — nothing is uploaded anywhere. VRM humanoid rigs work best; Mixamo-style GLB bone
-names are auto-detected; unrigged models get static poses. Your converted avatar is saved in
-`localStorage` per mode and survives reloads.
+names are auto-detected; unrigged models (cars, props, animals) are auto-fit to the frame,
+face the camera along their longest axis, and get a waddle animation. In Doge Runner you can
+also re-skin the **critters**: pick the WALKER, SPIKY, or FLYER slot before dropping a model
+(spikies keep hazard spikes stamped on top so they stay readable). Everything is saved in
+`localStorage` per slot and survives reloads; each slot has a reset button.
