@@ -1,19 +1,22 @@
 # Coolify-compatible Docker Compose file for DOGE RUNNER / DOGE KADE REMIX
 #
-# DEPLOYMENT STEPS (same flow as 007remix):
-# 1. In Coolify: New Resource → Service → Docker Compose
-# 2. Paste this compose file
-# 3. Set environment variables in Coolify UI (optional — defaults work):
-#    - GITHUB_REPOSITORY=drdogedoteth/doge-runner
-#    - IMAGE_TAG=main
-# 4. After initial deployment, go to service → Domains
-# 5. Add your domain — Coolify auto-configures SSL via Let's Encrypt
+# Builds from the LOCAL Dockerfile in this repo — no GHCR image, no GitHub
+# Actions dependency. Coolify clones the repo and builds it fresh on deploy.
 #
-# IMPORTANT: Do NOT add a ports: section — Coolify handles routing via Traefik
+# DEPLOYMENT STEPS:
+# 1. In Coolify: New Resource → Public Repository (or your GitHub app) →
+#    pick this repo, branch: main
+# 2. Build Pack: Docker Compose (this file is auto-detected at the repo root)
+# 3. Deploy. Enable "Auto Deploy" on the resource so every git push rebuilds.
+# 4. Service → Domains → add dr.tattedalien.club — Coolify handles SSL.
+#
+# IMPORTANT: Do NOT add a ports: section — Coolify routes via Traefik.
 
 services:
   game:
-    image: ghcr.io/${GITHUB_REPOSITORY:-drdogedoteth/doge-runner}:${IMAGE_TAG:-main}
+    build:
+      context: .
+      dockerfile: Dockerfile
 
     restart: unless-stopped
 
