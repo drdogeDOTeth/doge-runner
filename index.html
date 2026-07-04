@@ -40,6 +40,14 @@
   #avStatus{ color:var(--yellow); min-height:14px; margin-top:6px; word-break:break-word; }
   #spriteStrip{ display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
   #spriteStrip canvas{ image-rendering:pixelated; border:1px solid #2a2a44; background:#101020; }
+  .playerInput{ width:100%; margin-top:4px; padding:7px 8px; font-family:inherit; font-size:8px;
+    color:#e8e8f0; background:#101020; border:1px solid #3a3a5a; border-bottom-width:3px;
+    border-radius:3px; text-transform:uppercase; outline:none; }
+  .playerInput:focus{ border-color:var(--yellow); color:var(--yellow); }
+  #leaderboard{ display:grid; gap:3px; margin-top:6px; color:#cdd; }
+  .lbRow{ display:grid; grid-template-columns:16px 1fr auto; gap:6px; align-items:center; }
+  .lbRow.me{ color:var(--yellow); }
+  .lbMeta{ color:#778; margin-top:6px; }
   button.retro{ font-family:inherit; font-size:8px; background:#1c1c30; color:#e8e8f0;
     border:1px solid #3a3a5a; border-bottom-width:3px; border-radius:3px; padding:6px 8px;
     cursor:pointer; margin-top:8px; }
@@ -70,6 +78,10 @@
     <div><kbd>SPACE</kbd> jump &mdash; press again in mid-air to <b>double jump</b>!</div>
     <div><kbd>SHIFT</kbd>/<kbd>X</kbd> roll attack &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</div>
     <div style="color:#889">tip: roll off a ledge, then double jump!</div>
+    <h2>&#9654; PLAYER</h2>
+    <input class="playerInput" id="playerName" maxlength="10" value="PLAYER 1" aria-label="Player name">
+    <div id="leaderboard"></div>
+    <div class="lbMeta" id="leaderboardMeta"></div>
     <h2>&#9654; CUSTOM MODELS</h2>
     <div style="color:#889">Pick a slot, then drop a model &mdash; hero or critter!</div>
     <div id="slotRow">
@@ -898,10 +910,56 @@ const G={
   P:null, enemies:[], bananasLeft:[], bunches:[], lettersLeft:[],
   fx:[], camX:0, camY:20, cp:false, starHit:false,
   keys:{L:false,R:false,J:false,Jheld:false},
-  paused:false,
+  paused:false, runSubmitted:false, fourthShown:false, fourthClear:false,
 };
 window.DKC=G;
 const sf=()=>1+(G.level-1)*0.15; // enemy speed factor per loop
+
+const PLAYER_KEY='dkremix_player_name';
+const DKC_LB_KEY='dkc_runner_best_times';
+const playerNameEl=document.getElementById('playerName');
+const leaderboardEl=document.getElementById('leaderboard');
+const leaderboardMetaEl=document.getElementById('leaderboardMeta');
+function cleanName(v){
+  return (v||'PLAYER 1').toUpperCase().replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim().slice(0,10)||'PLAYER 1';
+}
+function getPlayerName(){ return cleanName(playerNameEl&&playerNameEl.value); }
+function loadRuns(){
+  try{ const data=JSON.parse(localStorage.getItem(DKC_LB_KEY)||'[]'); return Array.isArray(data)?data:[]; }
+  catch(e){ return []; }
+}
+function saveRuns(rows){ localStorage.setItem(DKC_LB_KEY,JSON.stringify(rows.slice(0,80))); }
+function formatRunTime(frames){
+  const total=Math.floor(frames/60), m=Math.floor(total/60), s=total%60;
+  return m?m+':'+('0'+s).slice(-2):s+'s';
+}
+function levelForBoard(){ return CUR?CUR.name:LEVELS[G.selLevel].name; }
+function bestTimesFor(levelName){
+  return loadRuns().filter(r=>r.level===levelName)
+    .sort((a,b)=>a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at)
+    .slice(0,5);
+}
+function updateLeaderboardUI(){
+  if(!leaderboardEl) return;
+  const levelName=levelForBoard();
+  const rows=bestTimesFor(levelName);
+  leaderboardEl.innerHTML=rows.length?rows.map((r,i)=>'<div class="lbRow '+(r.name===getPlayerName()?'me':'')+'"><span>#'+(i+1)+'</span><span>'+r.name+'</span><span>'+formatRunTime(r.time)+'</span></div>').join(''):'<div class="lbMeta">NO TIMES YET</div>';
+  if(leaderboardMetaEl) leaderboardMetaEl.textContent='BEST TIMES - '+levelName;
+}
+function recordClearRun(){
+  if(G.runSubmitted) return;
+  G.runSubmitted=true;
+  const rows=loadRuns();
+  rows.push({name:getPlayerName(),level:CUR.name,time:G.time,pickups:G.bananas,letters:G.letters.size,at:Date.now()});
+  rows.sort((a,b)=>a.level.localeCompare(b.level)||a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at);
+  saveRuns(rows);
+  updateLeaderboardUI();
+}
+if(playerNameEl){
+  playerNameEl.value=cleanName(localStorage.getItem(PLAYER_KEY)||playerNameEl.value);
+  playerNameEl.addEventListener('input',()=>{ playerNameEl.value=cleanName(playerNameEl.value); localStorage.setItem(PLAYER_KEY,playerNameEl.value); updateLeaderboardUI(); });
+  playerNameEl.addEventListener('blur',()=>{ playerNameEl.value=getPlayerName(); localStorage.setItem(PLAYER_KEY,playerNameEl.value); updateLeaderboardUI(); });
+}
 
 function resetPlayer(atCp){
   const x=atCp&&G.cp?STARB.x:60;
@@ -925,11 +983,12 @@ function startLevel(freshLetters){
   G.bunches=BUNCH_SPOTS.map(b=>({...b,taken:false}));
   G.lettersLeft=LETTER_SPOTS.map(l=>({...l,taken:false}));
   if(freshLetters) G.letters=new Set();
-  G.time=0; G.camX=0; G.camY=20;
+  G.time=0; G.camX=0; G.camY=20; G.runSubmitted=false;
   G.mode='intro'; G.stateT=0;
+  updateLeaderboardUI();
 }
 function newGame(){
-  G.level=1; G.lives=4; G.bananas=0;
+  G.level=1; G.lives=4; G.bananas=0; G.fourthShown=false; G.fourthClear=false;
   G.startIdx=G.selLevel;
   startLevel(true);
 }
@@ -942,11 +1001,13 @@ function respawn(){
 /* ================= INPUT ================= */
 addEventListener('keydown',e=>{
   const k=e.code;
+  if(e.target&&e.target.closest&&e.target.closest('input')){ if(k==='Enter') e.target.blur(); return; }
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(k)) e.preventDefault();
   ensureAudio();
   if(G.mode==='title'&&!e.repeat&&(k==='ArrowLeft'||k==='KeyA'||k==='ArrowRight'||k==='KeyD')){
     G.selLevel=(G.selLevel+((k==='ArrowLeft'||k==='KeyA')?-1:1)+LEVELS.length)%LEVELS.length;
     loadLevel(G.selLevel); // preview the zone behind the title
+    updateLeaderboardUI();
     sfx.banana();
   }
   if(k==='ArrowLeft'||k==='KeyA')G.keys.L=true;
@@ -1127,6 +1188,9 @@ function updatePlayer(){
 
   /* --- goal --- */
   if(P.onGround&&P.x>GOALX-24&&P.x<GOALX+40){
+    recordClearRun();
+    G.fourthClear=!G.fourthShown;
+    G.fourthShown=true;
     G.mode='clear'; G.stateT=0; sfx.clear();
   }
 }
@@ -1250,8 +1314,8 @@ function text(s,x,y,col='#fff',size=8){
 }
 function otext(s,x,y,col='#fff',size=8){
   ctx.font=size+'px "Press Start 2P"'; ctx.textBaseline='top';
-  ctx.fillStyle='#12102a';
-  ctx.fillText(s,x+1,y+1);
+  ctx.fillStyle='#05040d';
+  ctx.fillText(s,x+1,y); ctx.fillText(s,x-1,y); ctx.fillText(s,x,y+1); ctx.fillText(s,x,y-1);
   ctx.fillStyle=col; ctx.fillText(s,x,y);
 }
 function ctext(s,y,col='#fff',size=8){
@@ -1487,12 +1551,13 @@ function drawWorld(){
   }
 }
 function drawHUD(){
-  ctx.fillStyle='rgba(10,8,20,.45)'; ctx.fillRect(0,0,VW,17);
+  ctx.fillStyle='rgba(5,4,13,.68)'; ctx.fillRect(0,0,VW,18);
   ctx.drawImage(SPR[THEME.coll].frames[0],6,4);
   otext('x'+G.bananas,18,6,'#ffd23e',6);
   for(let i=0;i<G.hearts;i++) ctx.drawImage(SPR.heart.img,64+i*13,4);
   ctx.drawImage(HERO.frames.idle,108,3,10,12);
   otext('x'+G.lives,120,6,'#fff',6);
+  otext('TIME '+formatRunTime(G.time),148,6,'#39e6ff',6);
   let lx=214;
   for(const ch of 'DOGE'){
     ctx.globalAlpha=G.letters.has(ch)?1:0.25;
@@ -1500,6 +1565,36 @@ function drawHUD(){
     ctx.globalAlpha=1; lx+=16;
   }
   otext('L'+G.level,290,6,'#39e6ff',6);
+}
+function drawFourthFireworks(){
+  const t=G.stateT;
+  ctx.fillStyle='rgba(2,3,18,.58)'; ctx.fillRect(0,48,VW,132);
+  const colors=['#ff2d55','#fff7e6','#39e6ff','#2f6df6'];
+  const bursts=[
+    {x:62,y:82,start:8,r:28},{x:160,y:62,start:22,r:34},{x:254,y:86,start:36,r:30},
+    {x:104,y:126,start:54,r:24},{x:214,y:122,start:68,r:26}
+  ];
+  for(const b of bursts){
+    const age=(t-b.start)%90;
+    if(age<0||age>58) continue;
+    const p=age/58, ring=b.r*Math.sin(p*Math.PI*.82);
+    const fade=1-p;
+    for(let i=0;i<20;i++){
+      const a=i*Math.PI*2/20+(b.start%7)*.18;
+      const wob=Math.sin(age*.18+i)*2.4;
+      const x=Math.round(b.x+Math.cos(a)*(ring+wob));
+      const y=Math.round(b.y+Math.sin(a)*(ring*.72+wob*.5)+age*.08);
+      ctx.globalAlpha=Math.max(.18,fade);
+      ctx.fillStyle=colors[(i+b.start)%colors.length];
+      ctx.fillRect(x,y,2,2);
+      if((i&3)===0) ctx.fillRect(x+Math.sign(Math.cos(a))*3,y,1,1);
+    }
+    ctx.globalAlpha=1;
+  }
+  ctx.fillStyle='rgba(5,4,13,.72)'; ctx.fillRect(35,92,250,38);
+  ctx.strokeStyle=(t&16)?'#ff2d55':'#39e6ff'; ctx.strokeRect(34.5,91.5,251,39);
+  ctext('HAPPY 4TH',98,(t&8)?'#fff7e6':'#ffd23e',8);
+  ctext('OF JULY!',115,(t&8)?'#39e6ff':'#ff2d55',8);
 }
 function draw(){
   if(G.mode==='title'){ drawTitle(); return; }
@@ -1512,8 +1607,9 @@ function draw(){
   }
   if(G.mode==='clear'){
     ctx.fillStyle='rgba(10,8,20,.6)'; ctx.fillRect(0,66,VW,100);
+    if(G.fourthClear) drawFourthFireworks();
     ctext('LEVEL CLEAR!',76,'#ffd23e');
-    if(G.stateT>40){
+    if(G.stateT>40&&!G.fourthClear){
       ctext('PICKUPS '+G.bananas,100,'#fff',6);
       ctext('LETTERS '+[...'DOGE'].filter(c=>G.letters.has(c)).join(' '),114,'#fff',6);
       ctext('TIME '+Math.floor(G.time/60)+'s',128,'#fff',6);
@@ -1542,9 +1638,9 @@ function drawTitle(){
   ctext('JUNGLE - PIPES - EMERALD ZONES',92,'#fff',6);
   if((G.stateT&63)<44) ctext('PRESS ENTER TO PLAY',118,'#fff',7);
   ctext('ZONE: < '+LEVELS[G.selLevel].name+' >',136,'#ffd23e',6);
-  ctext('DROP A .VRM OR .GLB FILE',150,'#cdd',5);
-  ctext('TO PLAY AS YOUR OWN AVATAR',160,'#cdd',5);
-  ctext('RUN: A/D  JUMP: SPACE (2X!)  ROLL: SHIFT',176,'#9ab',5);
+  const best=bestTimesFor(LEVELS[G.selLevel].name)[0];
+  ctext(best?'BEST '+best.name+' '+formatRunTime(best.time):'NO BEST TIME YET',150,'#cdd',5);
+  ctext('RUN: A/D  JUMP: SPACE (2X!)  ROLL: SHIFT',166,'#9ab',5);
   const fr=HERO.frames[['run1','run2','run3','run4'][(G.stateT>>3)%4]];
   ctx.save(); ctx.translate(160,206-HERO.h); ctx.drawImage(fr,-HERO.w/2|0,0); ctx.restore();
 }
@@ -1756,8 +1852,9 @@ async function generateAvatar(file,slot='hero'){
   const faceRot=(!poser.hasArms&&size.x>size.z*1.4)?0:Math.PI/2;
   const hx=Math.max(faceRot===0?size.x:size.z,0.001);
   const fitW=spec.wh*spec.w/spec.h;
-  // fit BOTH height and width so wide models (cars, critters) aren't cut off
-  const s=Math.min(spec.mh/Math.max(size.y,0.001),(fitW*0.94)/hx);
+  // fit BOTH height and width so wide models (cars, critters) aren't cut off,
+  // but fill the frame: allow slight height overshoot, use most of the width
+  const s=Math.min((spec.mh*1.12)/Math.max(size.y,0.001),(fitW*0.99)/hx);
   inner.scale.setScalar(s);
   const ctr=box.getCenter(new THREE.Vector3());
   inner.position.set(-ctr.x*s,-box.min.y*s,-ctr.z*s);
@@ -1914,6 +2011,7 @@ resetBtn.addEventListener('click',()=>{
   }
 })();
 setSlot('hero');
+updateLeaderboardUI();
 </script>
 </body>
 </html>

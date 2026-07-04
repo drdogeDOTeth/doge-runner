@@ -39,6 +39,14 @@
   #avStatus{ color:var(--yellow); min-height:14px; margin-top:6px; word-break:break-word; }
   #spriteStrip{ display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
   #spriteStrip canvas{ image-rendering:pixelated; border:1px solid #2a2a44; background:#101020; }
+  .playerInput{ width:100%; margin-top:4px; padding:7px 8px; font-family:inherit; font-size:8px;
+    color:#e8e8f0; background:#101020; border:1px solid #3a3a5a; border-bottom-width:3px;
+    border-radius:3px; text-transform:uppercase; outline:none; }
+  .playerInput:focus{ border-color:var(--cyan); color:var(--cyan); }
+  #leaderboard{ display:grid; gap:3px; margin-top:6px; color:#cdd; }
+  .lbRow{ display:grid; grid-template-columns:16px 1fr auto; gap:6px; align-items:center; }
+  .lbRow.me{ color:var(--yellow); }
+  .lbMeta{ color:#778; margin-top:6px; }
   button.retro{ font-family:inherit; font-size:8px; background:#1c1c30; color:#e8e8f0;
     border:1px solid #3a3a5a; border-bottom-width:3px; border-radius:3px; padding:6px 8px;
     cursor:pointer; margin-top:8px; }
@@ -64,6 +72,10 @@
     <h2>&#9654; CONTROLS</h2>
     <div><kbd>&larr;</kbd> <kbd>&rarr;</kbd> run &nbsp; <kbd>&uarr;</kbd> <kbd>&darr;</kbd> climb</div>
     <div><kbd>SPACE</kbd> jump &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</div>
+    <h2>&#9654; PLAYER</h2>
+    <input class="playerInput" id="playerName" maxlength="10" value="PLAYER 1" aria-label="Player name">
+    <div id="leaderboard"></div>
+    <div class="lbMeta" id="leaderboardMeta"></div>
     <h2>&#9654; YOUR AVATAR</h2>
     <div id="dropzone">DROP A <b>.VRM</b> / <b>.GLB</b><br>FILE HERE<br><span style="font-size:7px">(or click to browse)</span></div>
     <input type="file" id="filePick" accept=".vrm,.glb,.gltf" style="display:none">
@@ -350,15 +362,56 @@ const bg=cv(W,H), bctx=bg.getContext('2d');
 /* ================= GAME STATE ================= */
 const G={
   mode:'title',        // title|intro|play|dying|win|gameover
-  t:0, level:1, score:0, lives:3, bonus:5000,
+  t:0, level:1, score:0, lives:3, bonus:5000, time:0,
   high:+(localStorage.getItem('dkremix_high')||25000),
   P:null, barrels:[], fires:[], hammers:[], pops:[], fx:[],
   ape:{timer:120, phase:'beat'}, drumLit:false,
   keys:{L:false,R:false,U:false,D:false,J:false},
-  paused:false, stateT:0, bassT:0, bassHi:false,
+  paused:false, stateT:0, bassT:0, bassHi:false, runSubmitted:false, fourthShown:false, fourthClear:false,
 };
 window.DK=G; // debug handle
 window.DK.step=(n=1)=>{for(let i=0;i<n;i++)update();};
+
+const PLAYER_KEY='dkremix_player_name';
+const ARCADE_LB_KEY='dkremix_arcade_scores';
+const playerNameEl=document.getElementById('playerName');
+const leaderboardEl=document.getElementById('leaderboard');
+const leaderboardMetaEl=document.getElementById('leaderboardMeta');
+function cleanName(v){
+  return (v||'PLAYER 1').toUpperCase().replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim().slice(0,10)||'PLAYER 1';
+}
+function getPlayerName(){ return cleanName(playerNameEl&&playerNameEl.value); }
+function formatRunTime(frames){
+  const total=Math.floor(frames/60), m=Math.floor(total/60), s=total%60;
+  return m?m+':'+('0'+s).slice(-2):s+'s';
+}
+function loadScores(){
+  try{ const data=JSON.parse(localStorage.getItem(ARCADE_LB_KEY)||'[]'); return Array.isArray(data)?data:[]; }
+  catch(e){ return []; }
+}
+function saveScores(rows){ localStorage.setItem(ARCADE_LB_KEY,JSON.stringify(rows.slice(0,40))); }
+function topScores(){ return loadScores().sort((a,b)=>b.score-a.score||b.level-a.level||b.at-a.at).slice(0,5); }
+function updateLeaderboardUI(){
+  if(!leaderboardEl) return;
+  const rows=topScores();
+  leaderboardEl.innerHTML=rows.length?rows.map((r,i)=>'<div class="lbRow '+(r.name===getPlayerName()?'me':'')+'"><span>#'+(i+1)+'</span><span>'+r.name+'</span><span>'+(''+r.score).padStart(6,'0')+'</span></div>').join(''):'<div class="lbMeta">NO SCORES YET</div>';
+  if(leaderboardMetaEl) leaderboardMetaEl.textContent='HIGH SCORES';
+}
+function recordArcadeScore(){
+  if(G.runSubmitted||G.score<=0) return;
+  G.runSubmitted=true;
+  const rows=loadScores();
+  rows.push({name:getPlayerName(),score:G.score,level:G.level,at:Date.now()});
+  rows.sort((a,b)=>b.score-a.score||b.level-a.level||b.at-a.at);
+  saveScores(rows);
+  if(rows[0]&&rows[0].score>G.high){ G.high=rows[0].score; localStorage.setItem('dkremix_high',G.high); }
+  updateLeaderboardUI();
+}
+if(playerNameEl){
+  playerNameEl.value=cleanName(localStorage.getItem(PLAYER_KEY)||playerNameEl.value);
+  playerNameEl.addEventListener('input',()=>{ playerNameEl.value=cleanName(playerNameEl.value); localStorage.setItem(PLAYER_KEY,playerNameEl.value); updateLeaderboardUI(); });
+  playerNameEl.addEventListener('blur',()=>{ playerNameEl.value=getPlayerName(); localStorage.setItem(PLAYER_KEY,playerNameEl.value); updateLeaderboardUI(); });
+}
 
 const lvl={
   barrelInterval:()=>Math.max(240-G.level*22,110),
@@ -381,13 +434,15 @@ function startLevel(fresh){
   if(fresh){ G.mode='intro'; G.stateT=0; }
 }
 function newGame(){
-  G.level=1; G.score=0; G.lives=3;
+  G.level=1; G.score=0; G.lives=3; G.time=0; G.runSubmitted=false; G.fourthShown=false; G.fourthClear=false;
   startLevel(true);
+  updateLeaderboardUI();
 }
 
 /* ================= INPUT ================= */
 addEventListener('keydown',e=>{
   const k=e.code;
+  if(e.target&&e.target.closest&&e.target.closest('input')){ if(k==='Enter') e.target.blur(); return; }
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(k)) e.preventDefault();
   ensureAudio();
   if(k==='ArrowLeft'||k==='KeyA')G.keys.L=true;
@@ -486,7 +541,7 @@ function updatePlayer(){
       h.taken=true; P.hammer=420; sfx.pickup();
     }
     // reached the top platform -> rescue!
-    if(P.floor===6){ G.mode='win'; G.stateT=0; addScore(G.bonus); sfx.win(); return; }
+    if(P.floor===6){ G.fourthClear=!G.fourthShown; G.fourthShown=true; G.mode='win'; G.stateT=0; addScore(G.bonus); sfx.win(); return; }
   }
 }
 
@@ -620,7 +675,7 @@ function update(){
     G.stateT++;
     if(G.stateT>160){
       G.lives--;
-      if(G.lives<0){ G.mode='gameover'; G.stateT=0; }
+      if(G.lives<0){ recordArcadeScore(); G.mode='gameover'; G.stateT=0; }
       else { startLevel(false); G.mode='play'; }
     }
     return;
@@ -632,6 +687,7 @@ function update(){
   }
   if(G.paused) return;
   // playing
+  G.time++;
   if((G.t&127)===0&&G.bonus>0) G.bonus=Math.max(0,G.bonus-100);
   G.bassT++;
   const bassRate=G.P.hammer>0?22:46;
@@ -649,7 +705,10 @@ function update(){
 /* ================= DRAW ================= */
 function text(s,x,y,col='#fff',size=8){
   ctx.font=size+'px "Press Start 2P"';
-  ctx.fillStyle=col; ctx.textBaseline='top'; ctx.fillText(s,x,y);
+  ctx.textBaseline='top';
+  ctx.fillStyle='#05040d';
+  ctx.fillText(s,x+1,y); ctx.fillText(s,x-1,y); ctx.fillText(s,x,y+1); ctx.fillText(s,x,y-1);
+  ctx.fillStyle=col; ctx.fillText(s,x,y);
 }
 function ctext(s,y,col='#fff',size=8){
   ctx.font=size+'px "Press Start 2P"';
@@ -727,8 +786,35 @@ function drawHUD(){
   ctx.strokeStyle='#2450d8'; ctx.strokeRect(178.5,22.5,42,21);
   text('BONUS',182,25,'#39e6ff',5);
   text((''+G.bonus).padStart(4,'0'),186,34,G.bonus<=1000?'#ff3d5e':'#ffd23e',6);
+  ctx.fillStyle='rgba(5,4,13,.72)'; ctx.fillRect(146,47,74,10);
+  ctx.strokeStyle='#2450d8'; ctx.strokeRect(145.5,46.5,75,11);
+  text('TIME '+formatRunTime(G.time),149,49,'#39e6ff',5);
   text('L='+(''+G.level).padStart(2,'0'),192,3,'#39e6ff',6);
   for(let i=0;i<G.lives;i++) ctx.drawImage(HERO.frames.idle,4+i*10,20,8,10);
+}
+function drawFourthFireworks(){
+  const t=G.stateT;
+  ctx.fillStyle='rgba(2,3,18,.65)'; ctx.fillRect(0,70,W,104);
+  const colors=['#ff3d5e','#fff7e6','#39e6ff','#2450d8'];
+  const bursts=[{x:46,y:98,start:8,r:22},{x:112,y:86,start:24,r:28},{x:178,y:102,start:40,r:22},{x:86,y:140,start:58,r:18},{x:152,y:138,start:72,r:20}];
+  for(const b of bursts){
+    const age=(t-b.start)%86;
+    if(age<0||age>54) continue;
+    const p=age/54, ring=b.r*Math.sin(p*Math.PI*.82);
+    for(let i=0;i<18;i++){
+      const a=i*Math.PI*2/18+(b.start%5)*.21;
+      const x=Math.round(b.x+Math.cos(a)*ring);
+      const y=Math.round(b.y+Math.sin(a)*ring*.75+age*.08);
+      ctx.globalAlpha=Math.max(.18,1-p);
+      ctx.fillStyle=colors[(i+b.start)%colors.length];
+      ctx.fillRect(x,y,2,2);
+    }
+    ctx.globalAlpha=1;
+  }
+  ctx.fillStyle='rgba(5,4,13,.78)'; ctx.fillRect(21,106,182,38);
+  ctx.strokeStyle=(t&16)?'#ff3d5e':'#39e6ff'; ctx.strokeRect(20.5,105.5,183,39);
+  ctext('HAPPY 4TH',112,(t&8)?'#fff7e6':'#ffd23e',7);
+  ctext('OF JULY!',128,(t&8)?'#39e6ff':'#ff3d5e',7);
 }
 function draw(){
   if(G.mode==='title'){ drawTitle(); return; }
@@ -765,7 +851,8 @@ function draw(){
   }
   if(G.mode==='win'){
     ctx.drawImage(SPR.heart.img,G.P.x-5,G.P.y-HERO.h-16);
-    if(G.stateT>60){ ctext('RESCUED!',120,'#ff5fd0'); ctext('BONUS '+G.bonus,138,'#ffd23e',6); }
+    if(G.fourthClear) drawFourthFireworks();
+    else if(G.stateT>60){ ctext('RESCUED!',120,'#ff5fd0'); ctext('BONUS '+G.bonus,138,'#ffd23e',6); }
   }
   if(G.mode==='gameover'){
     ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(0,96,W,56);
@@ -782,10 +869,10 @@ function drawTitle(){
   ctx.drawImage(bg,0,196,W,60,0,196,W,60); // bottom girders as decor
   ctext('DK',34,'#ff3d5e',26);
   ctext('REMIX',68,'#39e6ff',16);
+  const leader=topScores()[0];
   ctext('HIGH SCORE  '+(''+G.high).padStart(6,'0'),96,'#ffd23e',6);
-  if((G.stateT&63)<44) ctext('PRESS ENTER TO PLAY',118,'#fff',7);
-  ctext('DROP A .VRM OR .GLB FILE',148,'#9aa',5);
-  ctext('TO PLAY AS YOUR OWN AVATAR',158,'#9aa',5);
+  if(leader) ctext('#1 '+leader.name+' '+(''+leader.score).padStart(6,'0'),108,'#cdd',5);
+  if((G.stateT&63)<44) ctext('PRESS ENTER TO PLAY',124,'#fff',7);
   ctext('ARROWS/WASD + SPACE',174,'#556',5);
   const fy=x=>floorY(1,x); // parade stands on a girder
   drawSprite(SPR.ape.frames[(G.stateT>>4)&1],40,fy(40)-30,false);
@@ -1067,6 +1154,7 @@ resetBtn.addEventListener('click',()=>{
     }
   }catch(e){}
 })();
+updateLeaderboardUI();
 </script>
 </body>
 </html>
