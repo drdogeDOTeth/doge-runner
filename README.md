@@ -47,5 +47,24 @@ sprites — nothing is uploaded anywhere. VRM humanoid rigs work best; Mixamo-st
 names are auto-detected; unrigged models (cars, props, animals) are auto-fit to the frame,
 face the camera along their longest axis, and get a waddle animation. In Doge Runner you can
 also re-skin the **critters**: pick the WALKER, SPIKY, or FLYER slot before dropping a model
-(spikies keep hazard spikes stamped on top so they stay readable). Everything is saved in
-`localStorage` per slot and survives reloads; each slot has a reset button.
+(spikies keep hazard spikes stamped on top so they stay readable). In DK arcade mode you can
+re-skin **KONG** and the **LADY** the same way. Everything is saved in `localStorage` per
+slot and survives reloads; each slot has a reset button.
+
+## Load an avatar from a URL
+
+Both games accept model URLs as query parameters, so external sites (avatar generators,
+VRM collections) can deep-link straight into the game:
+
+```
+https://drdogedoteth.github.io/doge-runner/index.html?hero=https://example.com/avatar.vrm
+https://drdogedoteth.github.io/doge-runner/arcade.html?hero=...&kong=...&lady=...
+```
+
+- `index.html` params: `hero` (alias `avatar`), `walker`, `spiky`, `bird`
+- `arcade.html` params: `hero` (alias `avatar`), `kong` (alias `ape`), `lady`
+- URLs without a `.vrm`/`.glb`/`.gltf` extension are assumed to be VRM.
+- The model's host must allow CORS (e.g. raw GitHub, IPFS gateways, most CDNs).
+- There's also a "paste a model URL" box in the sidebar of both games.
+
+The model is fetched, converted to sprites locally, and saved per slot like a drop.

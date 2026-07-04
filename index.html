@@ -92,6 +92,11 @@
     </div>
     <div id="dropzone">DROP A <b>.VRM</b> / <b>.GLB</b><br>FOR: <b>HERO</b><br><span style="font-size:7px">(or click to browse)</span></div>
     <input type="file" id="filePick" accept=".vrm,.glb,.gltf" style="display:none">
+    <div style="display:flex; gap:4px; margin-top:4px;">
+      <input class="playerInput" id="urlLoad" placeholder="...OR PASTE A MODEL URL" spellcheck="false"
+             style="margin-top:0; flex:1; min-width:0; text-transform:none;" aria-label="Model URL">
+      <button class="retro" id="urlGo" style="margin-top:0;">LOAD</button>
+    </div>
     <div id="avStatus"></div>
     <div id="spriteStrip"></div>
     <button class="retro" id="resetAvatar" style="display:none">RESET SLOT TO DEFAULT</button>
@@ -2249,6 +2254,33 @@ resetBtn.addEventListener('click',()=>{
 })();
 setSlot('hero');
 updateLeaderboardUI();
+
+/* ===== load models from a URL: ?hero=<url> (also walker/spiky/bird, avatar=hero) ===== */
+async function loadFromUrl(url,slot){
+  slot=slot||curSlot;
+  try{
+    setStatus('FETCHING '+SLOT_LABEL[slot]+' MODEL...');
+    const resp=await fetch(url,{mode:'cors'});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const blob=await resp.blob();
+    let name=decodeURIComponent((url.split(/[?#]/)[0].split('/').pop()||'avatar')).slice(-60);
+    if(!/\.(vrm|glb|gltf)$/i.test(name)) name+='.vrm'; // assume VRM when the URL doesn't say
+    await handleFile(new File([blob],name),slot);
+  }catch(err){
+    console.error(err);
+    setStatus('URL LOAD FAILED: '+(err.message||err).toString().slice(0,50));
+  }
+}
+window.DKC.loadFromUrl=loadFromUrl;
+const urlInput=document.getElementById('urlLoad'), urlBtn=document.getElementById('urlGo');
+const loadUrlUI=()=>{ const u=urlInput.value.trim(); if(u) loadFromUrl(u,curSlot); };
+urlBtn.addEventListener('click',loadUrlUI);
+urlInput.addEventListener('keydown',e=>{ if(e.code==='Enter') loadUrlUI(); });
+(function fromParams(){
+  const q=new URLSearchParams(location.search);
+  const map={hero:'hero',avatar:'hero',walker:'walker',spiky:'spiky',bird:'bird'};
+  for(const k in map){ const u=q.get(k); if(u) loadFromUrl(u,map[k]); }
+})();
 </script>
 </body>
 </html>
