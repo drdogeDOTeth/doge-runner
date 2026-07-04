@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DK REMIX â€” retro arcade, your avatar</title>
+<title>DOGE KADE REMIX â€” retro arcade, your avatar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -50,6 +50,9 @@
   button.retro{ font-family:inherit; font-size:8px; background:#1c1c30; color:#e8e8f0;
     border:1px solid #3a3a5a; border-bottom-width:3px; border-radius:3px; padding:6px 8px;
     cursor:pointer; margin-top:8px; }
+  #slotRow{ display:flex; gap:4px; flex-wrap:wrap; margin:6px 0; }
+  button.retro.slotBtn{ padding:4px 5px; margin-top:0; font-size:7px; }
+  button.retro.slotBtn.on{ color:var(--yellow); border-color:var(--yellow); }
   button.retro:hover{ color:var(--red); border-color:var(--red); }
   #dragOverlay{ position:fixed; inset:0; background:rgba(7,6,15,.85); display:none;
     align-items:center; justify-content:center; z-index:50; font-size:16px; color:var(--cyan);
@@ -60,7 +63,7 @@
 </head>
 <body>
 <header>
-  <h1>DK <span>REMIX</span></h1>
+  <h1>DOGE KADE <span>REMIX</span></h1>
   <p>A LOVE LETTER TO 1981 &mdash; STARRING: YOU &nbsp;&mdash;&nbsp; <a href="index.html" style="color:#39e6ff">JUNGLE MODE &rarr;</a></p>
 </header>
 <main>
@@ -76,12 +79,18 @@
     <input class="playerInput" id="playerName" maxlength="10" value="PLAYER 1" aria-label="Player name">
     <div id="leaderboard"></div>
     <div class="lbMeta" id="leaderboardMeta"></div>
-    <h2>&#9654; YOUR AVATAR</h2>
+    <h2>&#9654; CUSTOM MODELS</h2>
+    <div style="color:#889">Pick a slot, then drop a model &mdash; play as anyone, kidnap with anything!</div>
+    <div id="slotRow">
+      <button class="retro slotBtn on" data-slot="hero">HERO</button>
+      <button class="retro slotBtn" data-slot="ape">KONG</button>
+      <button class="retro slotBtn" data-slot="lady">LADY</button>
+    </div>
     <div id="dropzone">DROP A <b>.VRM</b> / <b>.GLB</b><br>FILE HERE<br><span style="font-size:7px">(or click to browse)</span></div>
     <input type="file" id="filePick" accept=".vrm,.glb,.gltf" style="display:none">
     <div id="avStatus"></div>
     <div id="spriteStrip"></div>
-    <button class="retro" id="resetAvatar" style="display:none">USE DEFAULT HERO</button>
+    <button class="retro" id="resetAvatar" style="display:none">USE DEFAULT</button>
     <h2>&#9654; HOW TO PLAY</h2>
     <div>Climb to the top and rescue the lady! Jump barrels for 100 pts. Grab a
     <span style="color:var(--yellow)">hammer</span> to smash barrels &amp; fireballs.
@@ -89,7 +98,7 @@
   </aside>
 </main>
 <div id="dragOverlay">DROP TO PIXELIZE!</div>
-<footer>DK REMIX &mdash; original pixel art &amp; code. VRM/GLB avatars are converted to sprites locally in your browser.</footer>
+<footer>DOGE KADE REMIX &mdash; original pixel art &amp; code. VRM/GLB avatars are converted to sprites locally in your browser.</footer>
 
 <script type="importmap">
 {
@@ -301,6 +310,7 @@ const SPR={ ape:buildApe(), lady:buildLady(), barrel:buildBarrel(), fire:buildFi
             hammer:buildHammer(), drum:buildDrum(), heart:buildHeart() };
 const DEFAULT_HERO=buildHeroFrames();
 let HERO=DEFAULT_HERO;
+const DEFAULT_MODELS={ ape:SPR.ape, lady:SPR.lady };
 
 /* ================= LEVEL GEOMETRY =================
    floors 0..5 = girders bottom->top, floor 6 = lady's platform  */
@@ -867,18 +877,18 @@ function draw(){
 function drawTitle(){
   ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
   ctx.drawImage(bg,0,196,W,60,0,196,W,60); // bottom girders as decor
-  ctext('DK',34,'#ff3d5e',26);
-  ctext('REMIX',68,'#39e6ff',16);
+  ctext('DOGE KADE',36,'#ff3d5e',18);
+  ctext('REMIX',62,'#39e6ff',16);
   const leader=topScores()[0];
   ctext('HIGH SCORE  '+(''+G.high).padStart(6,'0'),96,'#ffd23e',6);
   if(leader) ctext('#1 '+leader.name+' '+(''+leader.score).padStart(6,'0'),108,'#cdd',5);
   if((G.stateT&63)<44) ctext('PRESS ENTER TO PLAY',124,'#fff',7);
   ctext('ARROWS/WASD + SPACE',174,'#556',5);
   const fy=x=>floorY(1,x); // parade stands on a girder
-  drawSprite(SPR.ape.frames[(G.stateT>>4)&1],40,fy(40)-30,false);
+  drawSprite(SPR.ape.frames[(G.stateT>>4)&1],40,fy(40)-SPR.ape.h,false);
   drawSprite(SPR.barrel.frames[(G.stateT>>3)&1],90,fy(90)-10,false);
   drawSprite(HERO.frames[(G.stateT>>3&1)?'run1':'run2'],124,fy(124)-HERO.h,false);
-  drawSprite(SPR.lady.frames[(G.stateT>>5)&1],180,fy(180)-18,false);
+  drawSprite(SPR.lady.frames[(G.stateT>>5)&1],180,fy(180)-SPR.lady.h,false);
 }
 
 /* ================= MAIN LOOP ================= */
@@ -939,6 +949,15 @@ function makePoser(THREE,bones,vrm,root){
     hammerUp(){ rot('leftUpperArm',AZ,20); rot('rightUpperArm',AZ,-20); },
     hammerFwd(){ armsDown(20,20); rot('leftUpperArm',AX,-62); rot('rightUpperArm',AX,-62); },
     victory(){ rot('leftUpperArm',AZ,-20); rot('rightUpperArm',AZ,20); },
+    // kong: chest-beating, holding, hurling
+    beat1(){ armsDown(50,50); rot('leftUpperArm',AX,-78); rot('leftLowerArm',AX,-46); rot('spine',AX,4); },
+    beat2(){ armsDown(50,50); rot('rightUpperArm',AX,-78); rot('rightLowerArm',AX,-46); rot('spine',AX,4); },
+    hold(){ armsDown(28,28); rot('leftUpperArm',AX,-66); rot('rightUpperArm',AX,-66);
+            rot('leftLowerArm',AX,-30); rot('rightLowerArm',AX,-30); },
+    hurl(){ armsDown(62,0); rot('rightUpperArm',AZ,-70); rot('rightUpperArm',AX,-20); rot('spine',AZ,-6); },
+    // lady: gentle sway
+    sway1(){ armsDown(76,76); rot('spine',AZ,5); },
+    sway2(){ armsDown(76,76); rot('spine',AZ,-5); },
   };
   // climb poses read wrong if arms rotate through: for climb, arms go UP:
   // left arm (+X) rotated +78 about Z points up; right arm (-X) needs -78. fixed above per frame.
@@ -993,7 +1012,20 @@ function crispify(c){ // alpha threshold + dark outline
   return c;
 }
 
-async function generateAvatar(file){
+/* what to render for each customizable slot */
+const SLOT_SPECS={
+  hero:{w:22,h:24,mh:1.6, wh:2.05, front:false,
+        poses:[['idle',0],['run1',0],['run2',0],['jump',0],['climb1',1],['climb2',1],
+               ['hammerUp',0],['hammerFwd',0],['victory',0]]},
+  ape: {w:38,h:30,mh:1.5, wh:1.8,  front:true,
+        poses:[['beat1',0],['beat2',0],['hold',0],['hurl',0]]},
+  lady:{w:16,h:20,mh:1.45,wh:1.75, front:true,
+        poses:[['sway1',0],['sway2',0]]},
+};
+const SLOT_KEYS={hero:'dkremix_avatar',ape:'dkremix_m_ape',lady:'dkremix_m_lady'};
+const SLOT_LABEL={hero:'HERO',ape:'KONG',lady:'LADY'};
+async function generateAvatar(file,slot='hero'){
+  const spec=SLOT_SPECS[slot];
   setStatus('LOADING 3D ENGINE...');
   const THREE=await import('three');
   const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
@@ -1035,35 +1067,38 @@ async function generateAvatar(file){
   const dir=new THREE.DirectionalLight(0xffffff,1.9); dir.position.set(1.5,3,3.5); scene.add(dir);
   const dir2=new THREE.DirectionalLight(0x8899ff,0.7); dir2.position.set(-2,1,-2); scene.add(dir2);
 
-  // normalize size: feet at y=0, ~1.6 world units tall
+  // normalize size: feet at y=0, fill the slot's frame
   root.updateMatrixWorld(true);
   const box=new THREE.Box3().setFromObject(root);
   const size=box.getSize(new THREE.Vector3());
-  const hgt=Math.max(size.y,0.001);
-  const s=1.6/hgt;
+  // props (no humanoid rig) face the camera along their longest axis
+  const faceRot=spec.front||(!poser.hasArms&&size.x>size.z*1.4)?0:Math.PI/2;
+  const hx=Math.max(faceRot===0?size.x:size.z,0.001);
+  const fitW=spec.wh*spec.w/spec.h;
+  // fit BOTH height and width so wide models (cars, critters) aren't cut off,
+  // but fill the frame: allow slight height overshoot, use most of the width
+  const s=Math.min((spec.mh*1.12)/Math.max(size.y,0.001),(fitW*0.99)/hx);
   inner.scale.setScalar(s);
   const ctr=box.getCenter(new THREE.Vector3());
   inner.position.set(-ctr.x*s,-box.min.y*s,-ctr.z*s);
 
-  const SW=22, SH=24;
+  const SW=spec.w, SH=spec.h;
   const renderer=new THREE.WebGLRenderer({antialias:false,alpha:true});
   renderer.setPixelRatio(1);
   renderer.setSize(SW,SH,false);
-  const worldH=2.05, worldW=worldH*SW/SH;
+  const worldH=spec.wh, worldW=worldH*SW/SH;
   const cam=new THREE.OrthographicCamera(-worldW/2,worldW/2,worldH-0.05,-0.05,0.1,20);
   cam.position.set(0,0,6); // looks straight down -Z; feet land on the sprite's bottom edge
 
   const frames={};
-  const list=[
-    ['idle',0],['run1',0],['run2',0],['jump',0],
-    ['climb1',1],['climb2',1],['hammerUp',0],['hammerFwd',0],['victory',0],
-  ];
-  for(const [name,back] of list){
-    group.rotation.y=0;
+  let fi=0;
+  for(const [name,back] of spec.poses){
+    group.rotation.y=0; group.rotation.z=0;
     poser.reset();
     if(poser.hasArms){ scene.updateMatrixWorld(true); poser.POSES[name](); }
     if(vrm){ vrm.humanoid.update(); }
-    group.rotation.y=back?Math.PI:Math.PI/2;
+    group.rotation.y=back?Math.PI:faceRot;
+    group.rotation.z=poser.hasArms?0:((fi++%2)?-0.06:0.06); // unrigged props get a waddle
     scene.updateMatrixWorld(true);
     renderer.render(scene,cam);
     const c=cv(SW,SH);
@@ -1075,41 +1110,68 @@ async function generateAvatar(file){
   return {frames,w:SW,h:SH,name:label};
 }
 
-function showStrip(hero){
+let curSlot='hero';
+function refreshStrip(){
   stripEl.innerHTML='';
-  const order=['idle','run1','run2','jump','climb1','climb2','hammerUp','victory'];
-  for(const k of order){
-    const src=hero.frames[k]; if(!src)continue;
-    const c=cv(hero.w*3,hero.h*3), g=c.getContext('2d');
+  const spr=curSlot==='hero'?HERO:SPR[curSlot];
+  const frames=curSlot==='hero'
+    ? ['idle','run1','run2','jump','climb1','climb2','hammerUp','victory'].map(k=>HERO.frames[k]).filter(Boolean)
+    : spr.frames;
+  for(const src of frames){
+    const c=cv(spr.w*3,spr.h*3), g=c.getContext('2d');
     g.imageSmoothingEnabled=false;
     g.drawImage(src,0,0,c.width,c.height);
     stripEl.appendChild(c);
   }
+  setStatus(SLOT_LABEL[curSlot]+': '+(spr.name||'DEFAULT'));
+  const custom=curSlot==='hero'?HERO!==DEFAULT_HERO:SPR[curSlot]!==DEFAULT_MODELS[curSlot];
+  resetBtn.style.display=custom?'inline-block':'none';
 }
 function applyHero(hero,persist){
   HERO=hero;
-  showStrip(hero);
-  resetBtn.style.display='inline-block';
-  setStatus('NOW PLAYING: '+hero.name);
+  if(curSlot==='hero') refreshStrip();
   if(persist){
     try{
       const data={name:hero.name,w:hero.w,h:hero.h,frames:{}};
       for(const k in hero.frames) data.frames[k]=hero.frames[k].toDataURL();
-      localStorage.setItem('dkremix_avatar',JSON.stringify(data));
+      localStorage.setItem(SLOT_KEYS.hero,JSON.stringify(data));
     }catch(e){}
   }
 }
-async function handleFile(file){
+function applyModel(slot,res,persist){
+  const spec=SLOT_SPECS[slot];
+  SPR[slot]={frames:spec.poses.map(([n])=>res.frames[n]),w:res.w,h:res.h,name:res.name};
+  if(curSlot===slot) refreshStrip();
+  if(persist){
+    try{
+      const data={name:res.name,w:res.w,h:res.h,f:SPR[slot].frames.map(c=>c.toDataURL())};
+      localStorage.setItem(SLOT_KEYS[slot],JSON.stringify(data));
+    }catch(e){}
+  }
+}
+async function handleFile(file,slot){
+  slot=slot||curSlot;
   if(!/\.(vrm|glb|gltf)$/i.test(file.name)){ setStatus('NEED A .VRM OR .GLB FILE'); return; }
   try{
-    const hero=await generateAvatar(file);
-    applyHero(hero,true);
+    const res=await generateAvatar(file,slot);
+    if(slot==='hero') applyHero({frames:res.frames,w:res.w,h:res.h,name:res.name},true);
+    else applyModel(slot,res,true);
+    setStatus(SLOT_LABEL[slot]+' NOW: '+res.name);
   }catch(err){
     console.error(err);
     setStatus('CONVERSION FAILED: '+(err.message||err).toString().slice(0,60));
   }
 }
 window.DK.loadAvatarFile=handleFile; // debug/test hook
+const slotBtns=[...document.querySelectorAll('.slotBtn')];
+function setSlot(s){
+  curSlot=s;
+  slotBtns.forEach(b=>b.classList.toggle('on',b.dataset.slot===s));
+  dz.innerHTML='DROP A <b>.VRM</b> / <b>.GLB</b><br>FOR: <b>'+SLOT_LABEL[s]+'</b><br><span style="font-size:7px">(or click to browse)</span>';
+  refreshStrip();
+}
+slotBtns.forEach(b=>b.addEventListener('click',()=>setSlot(b.dataset.slot)));
+window.DK.setSlot=setSlot;
 
 /* drag & drop + picker */
 const overlayEl=document.getElementById('dragOverlay');
@@ -1128,32 +1190,54 @@ addEventListener('drop',e=>{
 dz.addEventListener('click',()=>pick.click());
 pick.addEventListener('change',()=>{ if(pick.files[0]) handleFile(pick.files[0]); pick.value=''; });
 resetBtn.addEventListener('click',()=>{
-  HERO=DEFAULT_HERO;
-  localStorage.removeItem('dkremix_avatar');
-  stripEl.innerHTML=''; resetBtn.style.display='none';
-  setStatus('BACK TO PIXEL PETE');
+  if(curSlot==='hero'){ HERO=DEFAULT_HERO; localStorage.removeItem(SLOT_KEYS.hero); }
+  else{ SPR[curSlot]=DEFAULT_MODELS[curSlot]; localStorage.removeItem(SLOT_KEYS[curSlot]); }
+  refreshStrip();
 });
 
-/* restore saved avatar */
+/* restore saved models */
 (function restore(){
-  try{
-    const raw=localStorage.getItem('dkremix_avatar');
-    if(!raw) return;
-    const data=JSON.parse(raw);
-    const frames={}; let pending=0;
-    for(const k in data.frames){
-      pending++;
-      const img=new Image();
-      img.onload=()=>{
-        const c=cv(data.w,data.h);
-        c.getContext('2d').drawImage(img,0,0);
-        frames[k]=c;
-        if(--pending===0) applyHero({frames,w:data.w,h:data.h,name:data.name},false);
-      };
-      img.src=data.frames[k];
+  try{ // hero
+    const raw=localStorage.getItem(SLOT_KEYS.hero);
+    if(raw){
+      const data=JSON.parse(raw);
+      const frames={}; let pending=0;
+      for(const k in data.frames){
+        pending++;
+        const img=new Image();
+        img.onload=()=>{
+          const c=cv(data.w,data.h);
+          c.getContext('2d').drawImage(img,0,0);
+          frames[k]=c;
+          if(--pending===0) applyHero({frames,w:data.w,h:data.h,name:data.name},false);
+        };
+        img.src=data.frames[k];
+      }
     }
   }catch(e){}
+  for(const slot of ['ape','lady']){ // kong & the lady
+    try{
+      const raw=localStorage.getItem(SLOT_KEYS[slot]);
+      if(!raw) continue;
+      const data=JSON.parse(raw);
+      const frames=[]; let pending=data.f.length;
+      data.f.forEach((src,i)=>{
+        const img=new Image();
+        img.onload=()=>{
+          const c=cv(data.w,data.h);
+          c.getContext('2d').drawImage(img,0,0);
+          frames[i]=c;
+          if(--pending===0){
+            SPR[slot]={frames,w:data.w,h:data.h,name:data.name};
+            if(curSlot===slot) refreshStrip();
+          }
+        };
+        img.src=src;
+      });
+    }catch(e){}
+  }
 })();
+setSlot('hero');
 updateLeaderboardUI();
 </script>
 </body>
