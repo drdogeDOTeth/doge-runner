@@ -68,3 +68,21 @@ https://drdogedoteth.github.io/doge-runner/arcade.html?hero=...&kong=...&lady=..
 - There's also a "paste a model URL" box in the sidebar of both games.
 
 The model is fetched, converted to sprites locally, and saved per slot like a drop.
+
+## Global leaderboard (optional)
+
+Out of the box the leaderboards are per-browser (`localStorage`) and show one row per
+player (their best). To make them **global across all players**, deploy the tiny
+Cloudflare Worker in [`worker/leaderboard.js`](worker/leaderboard.js) (free tier is plenty):
+
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → Workers &amp; Pages → Create →
+   Worker → paste `worker/leaderboard.js` → Deploy.
+2. In the Worker: Settings → Bindings → Add → **KV namespace** — create a namespace
+   (any name) and set the **binding name** to `SCORES`.
+3. Copy the Worker URL (e.g. `https://dk-leaderboard.yourname.workers.dev`) into the
+   `LB_API` constant near the top of the leaderboard code in **both** `index.html` and
+   `arcade.html`.
+
+Scores then submit on every clear (runner) / game over (arcade), the sidebar switches to
+**WORLD BEST / GLOBAL HIGH SCORES**, and the server keeps only each player's best. If the
+Worker is unreachable the games silently fall back to the local boards.

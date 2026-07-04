@@ -1,0 +1,10 @@
+name = "dk-leaderboard"
+main = "leaderboard.js"
+compatibility_date = "2026-07-04"
+
+# For `npx wrangler deploy`: replace id with your KV namespace id
+# (npx wrangler kv namespace create SCORES). Dashboard deploys can
+# ignore this file entirely — just bind a KV namespace as SCORES.
+[[kv_namespaces]]
+binding = "SCORES"
+id = "00000000000000000000000000000000"

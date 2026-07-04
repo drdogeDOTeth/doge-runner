@@ -959,24 +959,61 @@ function formatRunTime(frames){
 }
 function levelForBoard(){ return CUR?CUR.name:LEVELS[G.selLevel].name; }
 function bestTimesFor(levelName){
-  return loadRuns().filter(r=>r.level===levelName)
-    .sort((a,b)=>a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at)
-    .slice(0,5);
+  const rows=loadRuns().filter(r=>r.level===levelName)
+    .sort((a,b)=>a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at);
+  const seen=new Set(), out=[]; // one row per player: their best run
+  for(const r of rows){
+    if(seen.has(r.name)) continue;
+    seen.add(r.name); out.push(r);
+    if(out.length===5) break;
+  }
+  return out;
+}
+/* --- global leaderboard (Cloudflare Worker; see worker/leaderboard.js) ---
+   Leave LB_API empty to stay local-only. */
+let LB_API='';
+const lbCache={}, lbAt={};
+async function fetchGlobal(levelName){
+  if(!LB_API) return;
+  if(lbAt[levelName]&&Date.now()-lbAt[levelName]<30000) return;
+  lbAt[levelName]=Date.now();
+  try{
+    const r=await fetch(LB_API+'/runner?level='+encodeURIComponent(levelName));
+    if(!r.ok) return;
+    const rows=await r.json();
+    if(Array.isArray(rows)){ lbCache[levelName]=rows; updateLeaderboardUI(); }
+  }catch(e){}
+}
+function submitGlobal(entry){
+  if(!LB_API) return;
+  fetch(LB_API+'/runner',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(entry)})
+    .then(r=>r.ok?r.json():null)
+    .then(rows=>{ if(Array.isArray(rows)){ lbCache[entry.level]=rows; lbAt[entry.level]=Date.now(); updateLeaderboardUI(); } })
+    .catch(()=>{});
+}
+window.DKC.setLbApi=u=>{ LB_API=u; for(const k in lbAt) delete lbAt[k]; updateLeaderboardUI(); }; // debug/config hook
+const safeName=v=>String(v||'').replace(/[^A-Za-z0-9 ]/g,'').slice(0,10);
+function renderBoard(rows,meta,empty){
+  leaderboardEl.innerHTML=rows.length?rows.map((r,i)=>'<div class="lbRow '+(r.name===getPlayerName()?'me':'')+'"><span>#'+(i+1)+'</span><span>'+safeName(r.name)+'</span><span>'+formatRunTime(r.time)+'</span></div>').join(''):'<div class="lbMeta">'+empty+'</div>';
+  if(leaderboardMetaEl) leaderboardMetaEl.textContent=meta;
 }
 function updateLeaderboardUI(){
   if(!leaderboardEl) return;
   const levelName=levelForBoard();
-  const rows=bestTimesFor(levelName);
-  leaderboardEl.innerHTML=rows.length?rows.map((r,i)=>'<div class="lbRow '+(r.name===getPlayerName()?'me':'')+'"><span>#'+(i+1)+'</span><span>'+r.name+'</span><span>'+formatRunTime(r.time)+'</span></div>').join(''):'<div class="lbMeta">NO TIMES YET</div>';
-  if(leaderboardMetaEl) leaderboardMetaEl.textContent='BEST TIMES - '+levelName;
+  const g=lbCache[levelName];
+  if(g) renderBoard(g.slice(0,5),'WORLD BEST - '+levelName,'NO TIMES YET');
+  else renderBoard(bestTimesFor(levelName),'BEST TIMES - '+levelName,'NO TIMES YET');
+  fetchGlobal(levelName); // refresh in the background, re-renders when it lands
 }
 function recordClearRun(){
   if(G.runSubmitted) return;
   G.runSubmitted=true;
+  const entry={name:getPlayerName(),level:CUR.name,time:G.time,pickups:G.bananas,letters:G.letters.size,at:Date.now()};
   const rows=loadRuns();
-  rows.push({name:getPlayerName(),level:CUR.name,time:G.time,pickups:G.bananas,letters:G.letters.size,at:Date.now()});
+  rows.push(entry);
   rows.sort((a,b)=>a.level.localeCompare(b.level)||a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at);
   saveRuns(rows);
+  submitGlobal(entry);
   updateLeaderboardUI();
 }
 if(playerNameEl){
@@ -1880,7 +1917,7 @@ function drawTitle(){
   ctext('JUNGLE - PIPES - EMERALD ZONES',92,'#fff',6);
   if((G.stateT&63)<44) ctext('PRESS ENTER TO PLAY',118,'#fff',7);
   ctext('ZONE: < '+LEVELS[G.selLevel].name+' >',136,'#ffd23e',6);
-  const best=bestTimesFor(LEVELS[G.selLevel].name)[0];
+  const best=(lbCache[LEVELS[G.selLevel].name]||[])[0]||bestTimesFor(LEVELS[G.selLevel].name)[0];
   ctext(best?'BEST '+best.name+' '+formatRunTime(best.time):'NO BEST TIME YET',150,'#cdd',5);
   ctext('RUN: A/D  JUMP: SPACE (2X!)  ROLL: SHIFT',166,'#9ab',5);
   const fr=HERO.frames[['run1','run2','run3','run4'][(G.stateT>>3)%4]];
