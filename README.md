@@ -46,6 +46,10 @@ github.com → your packages, or add registry credentials in Coolify.)
   **D-O-G-E** letters for a bonus life at the clear screen.
 - The star barrel is a checkpoint. Jump into barrel cannons and fire with SPACE;
   walk onto springs to bounce.
+- Defeated critters sometimes drop goodies: a pickup bundle, a heart, a rare 1UP
+  mushroom, or an **invincibility star** (rainbow mode — nothing can touch you).
+- Rumor has it one of the pipes in Pipe Panic goes somewhere... old-school rules
+  apply. And something shiny sits on the highest plank in Emerald Rush.
 
 ## Your avatar
 

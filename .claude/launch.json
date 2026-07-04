@@ -4,8 +4,9 @@
     {
       "name": "dkremix",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "http-server", "-p", "4173", "-c-1", "."],
-      "port": 4173
+      "runtimeArgs": ["--yes", "http-server", "-c-1", "."],
+      "port": 4173,
+      "autoPort": true
     }
   ]
 }

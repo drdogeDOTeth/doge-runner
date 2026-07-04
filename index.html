@@ -184,6 +184,7 @@ const sfx={
   death(){ [520,470,415,349,262,196,131].forEach((f,i)=>tone(f,f*0.9,0.15,'square',0.12,i*0.11)); },
   clear(){ [392,523,659,784,659,784,1046].forEach((f,i)=>tone(f,f,0.15,'square',0.12,i*0.1));
            tone(1318,1318,0.5,'square',0.11,0.75); },
+  warp(){ tone(420,70,0.4,'square',0.14); noiseHit(0.15,0.06,0.05,500); },
   secret(){ [523,392,311,262].forEach((f,i)=>tone(f,f,0.14,'triangle',0.13,i*0.09));
             tone(1046,1568,0.3,'square',0.07,0.5); },
 };
@@ -395,10 +396,41 @@ function buildCart(){ // DKC-style wooden minecart
   }
   return {frames:[f(0),f(1)],w:28,h:16};
 }
+function buildStarPow(){ // invincibility star drop
+  const rows=[
+    '......X......',
+    '.....XXX.....',
+    '.....XXX.....',
+    '....XXXXX....',
+    'XXXXXXXXXXXXX',
+    '.XXXXXXXXXXX.',
+    '..XXXXXXXXX..',
+    '...XXXXXXX...',
+    '...XXXXXXX...',
+    '..XXXX.XXXX..',
+    '.XXX.....XXX.',
+    '.X.........X.',
+  ];
+  const c=cv(13,12), g=c.getContext('2d');
+  rows.forEach((r,y)=>{ for(let x=0;x<13;x++) if(r[x]==='X'){
+    g.fillStyle=(y<4)?'#ffe27a':'#ffd23e'; g.fillRect(x,y,1,1);
+  }});
+  g.fillStyle='#7a4a10'; g.fillRect(4,5,1,3); g.fillRect(8,5,1,3);
+  return {img:c,w:13,h:12};
+}
+function buildShroom(){ // 1UP mushroom drop
+  const c=cv(14,14), g=c.getContext('2d');
+  const R=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};
+  R(3,1,8,2,'#2fae2f'); R(2,2,10,5,'#2fae2f'); R(1,4,12,4,'#2fae2f');
+  R(3,2,3,3,'#e8ffe8'); R(9,4,3,3,'#e8ffe8'); R(1,7,12,1,'#157a15');
+  R(4,8,6,5,'#f8f0e0'); R(5,9,1,2,'#101028'); R(8,9,1,2,'#101028');
+  return {img:c,w:14,h:14};
+}
 const SPR={ walker:buildWalker(), spiky:buildSpiky(), bird:buildBird(),
   cannon:buildCannon(), star:buildStarBarrel(), banana:buildBanana(),
   coin:buildCoin(), ring:buildRing(),
   bunch:buildBunch(), goal:buildGoal(), heart:buildHeart(),
+  starPow:buildStarPow(), shroom:buildShroom(),
   cart:buildCart(),
   letters:{} };
 document.fonts.ready.then(()=>{ 'DOGE'.split('').forEach(ch=>SPR.letters[ch]=buildLetter(ch)); });
@@ -475,7 +507,8 @@ const LEVELS=[
     at([2712,132],[2722,132],[2792,92],[2802,92],[2872,54],[2882,54]);
   },
 },
-{ name:'PIPE PANIC', theme:'mario', width:3600, goal:3500, star:{x:1800,y:166},
+{ name:'PIPE PANIC', theme:'mario', width:4700, goal:3500, star:{x:1800,y:166},
+  placed:[{t:'oneup',x:4192,y:114}], // hidden 1UP in the cellar
   solids:[
     {x:0,   y:200, w:520},
     {x:300, y:168, w:28, deco:'pipe'},
@@ -505,6 +538,13 @@ const LEVELS=[
     {x:3000,y:200, w:600},
     {x:3080,y:140, w:64, plank:1, deco:'brick'},
     {x:3200,y:168, w:28, deco:'pipe'},
+    /* --- secret coin cellar (warp: press DOWN on the 5th pipe) --- */
+    {x:3688,y:40,  w:32},                       // left wall
+    {x:3720,y:200, w:860},                      // cellar floor
+    {x:3960,y:150, w:64, plank:1, deco:'brick'},
+    {x:4160,y:120, w:64, plank:1, deco:'brick'},
+    {x:4480,y:168, w:28, deco:'pipe'},          // exit pipe
+    {x:4580,y:40,  w:32},                       // right wall
   ],
   cannons:[], springs:[],
   enemies:[
@@ -526,9 +566,11 @@ const LEVELS=[
     arc(1690,96,[[-45,14],[-15,2],[15,2],[45,14]]);
     arc(2360,166,[[-24,8],[0,-2],[24,8]]);
     arc(2960,166,[[-24,8],[0,-2],[24,8]]);
+    for(let gx=3840;gx<=4360;gx+=40) for(const gy of [122,152,182]) at([gx,gy]); // cellar coin grid
   },
 },
 { name:'EMERALD RUSH', theme:'sonic', width:4200, goal:4080, star:{x:2550,y:150},
+  placed:[{t:'star',x:3135,y:90}], // invincibility star on the top plank
   solids:[
     {x:0,   y:200, w:620},
     {x:620, y:184, w:150},
@@ -933,6 +975,7 @@ const G={
   P:null, enemies:[], bananasLeft:[], bunches:[], lettersLeft:[],
   fx:[], camX:0, camY:20, cp:false, starHit:false,
   inCart:false, cart:null, cartUsed:false,
+  drops:[], warpLock:false, flashT:0,
   keys:{L:false,R:false,J:false,Jheld:false,Dn:false},
   paused:false, runSubmitted:false, fourthShown:false, fourthClear:false,
 };
@@ -1026,7 +1069,7 @@ function resetPlayer(atCp){
   const x=atCp&&G.cp?STARB.x:60;
   G.P={x, y:groundTopAt(x)??192, vx:0, vy:0, dir:1, onGround:true,
     rollT:0, rollCd:0, invT:0, coyote:0, jbuf:0, walkT:0, airJumps:0,
-    inBarrel:-1, barrelCd:0, launched:false};
+    inBarrel:-1, barrelCd:0, launched:false, starT:0};
   G.hearts=2;
 }
 function spawnEnemies(){
@@ -1046,6 +1089,7 @@ function startLevel(freshLetters){
   if(freshLetters) G.letters=new Set();
   G.time=0; G.camX=0; G.camY=20; G.runSubmitted=false;
   G.inCart=false; G.cart=null; G.cartUsed=false;
+  G.drops=placedDrops(); G.warpLock=false; G.flashT=0;
   G.mode='intro'; G.stateT=0;
   updateLeaderboardUI();
 }
@@ -1058,7 +1102,11 @@ function respawn(){
   resetPlayer(true);
   spawnEnemies();
   G.inCart=false; G.cart=null; G.cartUsed=false; // secret can be retried
+  G.drops=placedDrops(); G.warpLock=false; G.flashT=0;
   G.mode='play';
+}
+function placedDrops(){
+  return ((CUR&&CUR.placed)||[]).map(d=>({...d,vy:0,vx:0,onG:true,age:0,keep:true}));
 }
 
 /* ================= INPUT ================= */
@@ -1107,9 +1155,17 @@ function solidsAt(x,y,w,h,planks){
   }
   return out;
 }
+function pipeWarp(tx,ty){
+  const P=G.P;
+  P.x=tx; P.y=ty; P.vx=0; P.vy=0; P.onGround=true; P.rollT=0; P.airJumps=0;
+  G.warpLock=true; G.flashT=14;
+  G.camX=clamp(tx-140,0,LEVELW-VW); G.camY=clamp(ty-150,-40,40);
+  sfx.warp();
+  G.fx.push({t:'boom',x:tx,y:ty-10,age:0});
+}
 function hurt(){
   const P=G.P;
-  if(P.invT>0||G.mode!=='play') return;
+  if(P.invT>0||P.starT>0||G.mode!=='play') return;
   G.hearts--;
   sfx.hurt();
   if(G.hearts<=0){ die(); return; }
@@ -1143,6 +1199,7 @@ function updatePlayer(){
   }
   if(P.barrelCd>0)P.barrelCd--;
   if(P.invT>0)P.invT--;
+  if(P.starT>0)P.starT--;
   if(P.jbuf>0)P.jbuf--;
   if(P.rollCd>0)P.rollCd--;
 
@@ -1246,6 +1303,13 @@ function updatePlayer(){
     return;
   }
 
+  /* --- secret: warp pipes (press DOWN on the 5th pipe in Pipe Panic) --- */
+  if(G.warpLock&&!K.Dn) G.warpLock=false;
+  if(!G.warpLock&&K.Dn&&P.onGround&&CUR&&CUR.name==='PIPE PANIC'){
+    if(P.x>2116&&P.x<2152&&Math.abs(P.y-152)<3){ pipeWarp(3790,200); return; } // down the 5th pipe
+    if(P.x>4476&&P.x<4512&&Math.abs(P.y-168)<3){ pipeWarp(2134,152); return; } // cellar exit
+  }
+
   /* --- springs (emerald zone): big bounce --- */
   for(const sp of SPRINGS){
     if(sp.t>0)sp.t--;
@@ -1293,20 +1357,63 @@ function updateEnemies(){
     const etop=e.t==='bird'?e.y-eh/2:e.y-eh;
     if(!overlap(P.x-HB_W/2,P.y-HB_H,HB_W,HB_H,e.x-ew/2,etop,ew,eh)) continue;
     const stomping=P.vy>0.5&&(P.y-etop)<12;
-    if(stomping&&e.t!=='spike'){
+    if(P.starT>0){ // invincibility star plows through EVERYTHING, spikies included
+      e.dead=true; e.vy=-3;
+      sfx.stomp();
+      G.fx.push({t:'puff',x:e.x,y:etop,age:0});
+      spawnDrop(e.x,etop);
+    }
+    else if(stomping&&e.t!=='spike'){
       e.dead=true; e.vy=-2.5;
       P.vy=G.keys.Jheld?-5.6:-3.8; P.y=etop;
       sfx.stomp();
       G.fx.push({t:'puff',x:e.x,y:etop,age:0});
+      spawnDrop(e.x,etop);
     }
     else if(P.rollT>0&&e.t!=='spike'){
       e.dead=true; e.vy=-3;
       sfx.stomp();
       G.fx.push({t:'puff',x:e.x,y:etop,age:0});
+      spawnDrop(e.x,etop);
     }
     else hurt();
   }
   G.enemies=G.enemies.filter(e=>!e.dead||e.y<KILLY+40);
+}
+
+/* ================= ENEMY DROPS / POWERUPS ================= */
+function spawnDrop(x,y){
+  const r=Math.random();
+  let t=null;
+  if(r<0.03) t='oneup';
+  else if(r<0.11) t='star';
+  else if(r<0.23) t='heart';
+  else if(r<0.45) t='bunch5';
+  if(!t) return;
+  G.drops.push({t,x,y:y-4,vy:-2.8,vx:(Math.random()-0.5)*1.4,onG:false,age:0});
+}
+function updateDrops(){
+  const P=G.P;
+  for(let i=G.drops.length-1;i>=0;i--){
+    const d=G.drops[i];
+    if(!d.keep) d.age++;
+    if(!d.onG){
+      d.vy+=0.18; d.y+=d.vy; d.x+=d.vx;
+      const gy=groundTopAt(d.x);
+      if(gy!==null&&d.vy>0&&d.y>=gy){ d.y=gy; d.onG=true; }
+      if(d.y>KILLY){ G.drops.splice(i,1); continue; }
+    }
+    if(d.age>540){ G.drops.splice(i,1); continue; }
+    if(!d.keep&&d.age<22) continue; // let the drop pop out visibly before it can be grabbed
+    if(Math.abs(P.x-d.x)<13&&Math.abs((P.y-HB_H/2)-(d.y-8))<20){
+      G.drops.splice(i,1);
+      if(d.t==='heart'){ G.hearts=Math.min(2,G.hearts+1); sfx.check(); }
+      else if(d.t==='star'){ P.starT=420; sfx.letter(); }
+      else if(d.t==='oneup'){ G.lives++; sfx.oneup(); G.fx.push({t:'oneup',x:d.x,y:d.y-16,age:0}); }
+      else if(d.t==='bunch5'){ G.bananas+=5; sfx.bunch(); }
+      G.fx.push({t:'spark',x:d.x,y:d.y-8,age:0});
+    }
+  }
 }
 
 /* ================= COLLECTIBLES ================= */
@@ -1436,6 +1543,7 @@ function updateCart(){
 /* ================= UPDATE ================= */
 function update(){
   G.t++;
+  if(G.flashT>0)G.flashT--;
   if(G.mode==='title'||G.mode==='gameover'){ G.stateT++; return; }
   if(G.mode==='intro'){ G.stateT++; if(G.stateT>110)G.mode='play'; updateCamera(); return; }
   if(G.mode==='clear'){
@@ -1467,6 +1575,7 @@ function update(){
   if(G.mode==='dying') return;
   updateEnemies();
   updateCollect();
+  updateDrops();
   for(let i=G.fx.length-1;i>=0;i--){ if(++G.fx[i].age>26&&G.fx[i].t!=='oneup'||G.fx[i].age>60)G.fx.splice(i,1); }
   updateCamera();
 }
@@ -1623,6 +1732,8 @@ function drawPlayer(){
   const fr=HERO.frames[playerFrame()]||HERO.frames.idle;
   const sx=Math.round(P.x-G.camX), sy=Math.round(P.y-G.camY);
   ctx.save();
+  if(P.starT>0&&(P.starT>90||(G.t&7)<5)) // invincibility rainbow (blinks out at the end)
+    ctx.filter='hue-rotate('+((G.t*37)%360)+'deg) saturate(2.2) brightness(1.15)';
   if(P.rollT>0||(G.mode==='dying')){
     ctx.translate(sx,sy-HERO.h/2);
     if(P.rollT>0) ctx.rotate(P.dir*(28-P.rollT)*0.45);
@@ -1653,6 +1764,10 @@ function drawCannons(){
 }
 function drawWorld(){
   drawParallax();
+  if(CUR&&CUR.name==='PIPE PANIC'&&G.camX>3400){ // the cellar is underground-dark
+    const a=Math.min((G.camX-3400)/180,0.94);
+    ctx.fillStyle='rgba(7,7,30,'+a.toFixed(2)+')'; ctx.fillRect(0,0,VW,VH);
+  }
   drawSolids();
   // star barrel
   if(!G.starHit) drawSprite(SPR.star.img,STARB.x,STARB.y-14,false);
@@ -1682,6 +1797,18 @@ function drawWorld(){
     ctx.fillStyle='#d02020'; ctx.fillRect(sx-8,sy-14+comp,16,4);
     ctx.fillStyle='#f06060'; ctx.fillRect(sx-8,sy-14+comp,16,1);
     ctx.fillStyle='#803020'; ctx.fillRect(sx-7,sy-2,14,2);
+  }
+  for(const d of G.drops){ // powerup drops
+    if(d.age>450&&(G.t&3)<2) continue; // blink before despawning
+    const bob=d.onG?Math.sin(G.t*0.1+d.x)*1.5:0;
+    if(d.t==='bunch5'){
+      const c=SPR[THEME.coll].frames[0];
+      const sx2=Math.round(d.x-G.camX), sy2=Math.round(d.y-16+bob-G.camY);
+      if(sx2>-24&&sx2<VW+24) ctx.drawImage(c,sx2-(c.width*0.8|0),sy2,c.width*1.6|0,c.height*1.6|0);
+      continue;
+    }
+    const img=d.t==='heart'?SPR.heart.img:d.t==='star'?SPR.starPow.img:SPR.shroom.img;
+    drawSprite(img,d.x,d.y-13+bob,false);
   }
   for(const e of G.enemies){
     const spr=e.t==='walk'?SPR.walker:e.t==='spike'?SPR.spiky:SPR.bird;
@@ -1879,6 +2006,7 @@ function draw(){
   if(G.mode==='title'){ drawTitle(); return; }
   if(G.inCart) drawCartWorld(); else drawWorld();
   drawHUD();
+  if(G.flashT>0){ ctx.fillStyle='rgba(255,255,255,'+(G.flashT/16).toFixed(2)+')'; ctx.fillRect(0,0,VW,VH); }
   if(G.mode==='intro'){
     ctx.fillStyle='rgba(10,8,20,.55)'; ctx.fillRect(0,88,VW,44);
     ctext('LEVEL '+G.level+': '+CUR.name,96,'#ffd23e',7);
