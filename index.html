@@ -971,7 +971,7 @@ function bestTimesFor(levelName){
 }
 /* --- global leaderboard (Cloudflare Worker; see worker/leaderboard.js) ---
    Leave LB_API empty to stay local-only. */
-let LB_API='';
+let LB_API='https://dk-leaderboard.roundtree91.workers.dev';
 const lbCache={}, lbAt={};
 async function fetchGlobal(levelName){
   if(!LB_API) return;

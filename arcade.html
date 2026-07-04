@@ -417,7 +417,7 @@ function topScores(){
 }
 /* --- global leaderboard (Cloudflare Worker; see worker/leaderboard.js) ---
    Leave LB_API empty to stay local-only. */
-let LB_API='';
+let LB_API='https://dk-leaderboard.roundtree91.workers.dev';
 let lbGlobal=null, lbGlobalAt=0;
 async function fetchGlobal(){
   if(!LB_API) return;
