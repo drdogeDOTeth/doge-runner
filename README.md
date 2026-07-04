@@ -1,5 +1,8 @@
 # DOGE RUNNER
 
+**▶ Play it now: https://drdogedoteth.github.io/doge-runner/** (arcade mode:
+[/arcade.html](https://drdogedoteth.github.io/doge-runner/arcade.html))
+
 A retro browser platformer with one twist: **drag & drop any `.vrm` or `.glb` avatar and it
 becomes the playable pixel-art hero** — rendered from the 3D model into sprite frames
 locally in your browser, the same "pre-rendered 3D" trick Donkey Kong Country used in 1994.
