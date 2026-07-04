@@ -28,6 +28,14 @@ npx http-server -p 4173 .
 
 then open http://localhost:4173.
 
+### Docker / Coolify
+
+Every push to `main` builds `ghcr.io/drdogedoteth/doge-runner:main` (nginx serving the
+two games — see [`Dockerfile`](Dockerfile)). To self-host with Coolify: New Resource →
+Service → Docker Compose → paste [`docker-compose.yml`](docker-compose.yml), then add a
+domain. Same flow as 007remix. (One-time: make the GHCR package public under
+github.com → your packages, or add registry credentials in Coolify.)
+
 ## How to play
 
 - On the title screen, press **A / D** to pick your starting zone, then **ENTER**.
