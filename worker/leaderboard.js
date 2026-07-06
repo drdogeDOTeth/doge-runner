@@ -6,10 +6,13 @@
    3. Copy the *.workers.dev URL into LB_API in index.html and arcade.html
 
    API:
-   GET  /runner?level=JUNGLE%20JAUNT  → top 10 [{name,time,pickups,letters,at}]
-   POST /runner {name,level,time,pickups,letters} → stores best-per-player, returns top 10
+   GET  /runner?level=JUNGLE%20JAUNT&tier=1  → top 10 [{name,time,pickups,letters,tier,at}]
+   POST /runner {name,level,tier,time,pickups,letters} → best-per-player per (level,tier)
    GET  /arcade                       → top 10 [{name,score,level,at}]
-   POST /arcade {name,score,level}    → stores best-per-player, returns top 10 */
+   POST /arcade {name,score,level}    → stores best-per-player, returns top 10
+
+   tier = the difficulty loop (the "L1/L2..." level counter). Each (zone,tier)
+   is its own board. tier<=1 uses the legacy key so old scores still show. */
 
 const LEVELS=['JUNGLE JAUNT','PIPE PANIC','EMERALD RUSH'];
 const CORS={
@@ -32,26 +35,30 @@ async function upsert(env,key,entry,cmp){
   return rows.slice(0,10);
 }
 
+const runnerKey=(level,tier)=>tier>1?'runner:'+level+':'+tier:'runner:'+level;
 async function runner(req,url,env){
   if(req.method==='GET'){
     const level=url.searchParams.get('level')||'';
     if(!LEVELS.includes(level)) return json({error:'unknown level'},400);
-    return json(JSON.parse(await env.SCORES.get('runner:'+level)||'[]').slice(0,10));
+    const tier=int(url.searchParams.get('tier'),1,999)||1;
+    return json(JSON.parse(await env.SCORES.get(runnerKey(level,tier))||'[]').slice(0,10));
   }
   if(req.method==='POST'){
     let b; try{ b=await req.json(); }catch(e){ return json({error:'bad json'},400); }
     const level=String(b.level||'');
     if(!LEVELS.includes(level)) return json({error:'unknown level'},400);
+    const tier=int(b.tier,1,999)||1;
     const entry={
       name:cleanName(b.name),
       time:int(b.time,1,60*60*60*10), // frames at 60fps, 10 hour cap
       pickups:int(b.pickups,0,9999),
       letters:int(b.letters,0,4),
+      tier,
       at:Date.now(),
     };
     if(entry.time===null||entry.pickups===null||entry.letters===null) return json({error:'bad entry'},400);
     const cmp=(a,b)=>a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||a.at-b.at;
-    return json(await upsert(env,'runner:'+level,entry,cmp));
+    return json(await upsert(env,runnerKey(level,tier),entry,cmp));
   }
   return json({error:'method not allowed'},405);
 }

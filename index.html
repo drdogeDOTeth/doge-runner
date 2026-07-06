@@ -1001,8 +1001,10 @@ function formatRunTime(frames){
   return m?m+':'+('0'+s).slice(-2):s+'s';
 }
 function levelForBoard(){ return CUR?CUR.name:LEVELS[G.selLevel].name; }
-function bestTimesFor(levelName){
-  const rows=loadRuns().filter(r=>r.level===levelName)
+function tierForBoard(){ return (G.mode==='title'||G.mode==='gameover')?1:(G.level||1); }
+function boardKey(levelName,tier){ return levelName+'#'+tier; }
+function bestTimesFor(levelName,tier){
+  const rows=loadRuns().filter(r=>r.level===levelName&&(r.tier||1)===tier)
     .sort((a,b)=>a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at);
   const seen=new Set(), out=[]; // one row per player: their best run
   for(const r of rows){
@@ -1016,22 +1018,24 @@ function bestTimesFor(levelName){
    Leave LB_API empty to stay local-only. */
 let LB_API='https://dk-leaderboard.roundtree91.workers.dev';
 const lbCache={}, lbAt={};
-async function fetchGlobal(levelName){
+async function fetchGlobal(levelName,tier){
   if(!LB_API) return;
-  if(lbAt[levelName]&&Date.now()-lbAt[levelName]<30000) return;
-  lbAt[levelName]=Date.now();
+  const key=boardKey(levelName,tier);
+  if(lbAt[key]&&Date.now()-lbAt[key]<30000) return;
+  lbAt[key]=Date.now();
   try{
-    const r=await fetch(LB_API+'/runner?level='+encodeURIComponent(levelName));
+    const r=await fetch(LB_API+'/runner?level='+encodeURIComponent(levelName)+'&tier='+tier);
     if(!r.ok) return;
     const rows=await r.json();
-    if(Array.isArray(rows)){ lbCache[levelName]=rows; updateLeaderboardUI(); }
+    if(Array.isArray(rows)){ lbCache[key]=rows; updateLeaderboardUI(); }
   }catch(e){}
 }
 function submitGlobal(entry){
   if(!LB_API) return;
+  const key=boardKey(entry.level,entry.tier||1);
   fetch(LB_API+'/runner',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(entry)})
     .then(r=>r.ok?r.json():null)
-    .then(rows=>{ if(Array.isArray(rows)){ lbCache[entry.level]=rows; lbAt[entry.level]=Date.now(); updateLeaderboardUI(); } })
+    .then(rows=>{ if(Array.isArray(rows)){ lbCache[key]=rows; lbAt[key]=Date.now(); updateLeaderboardUI(); } })
     .catch(()=>{});
 }
 window.DKC.setLbApi=u=>{ LB_API=u; for(const k in lbAt) delete lbAt[k]; updateLeaderboardUI(); }; // debug/config hook
@@ -1043,18 +1047,21 @@ function renderBoard(rows,meta,empty){
 function updateLeaderboardUI(){
   if(!leaderboardEl) return;
   const levelName=levelForBoard();
-  const g=lbCache[levelName];
-  if(g) renderBoard(g.slice(0,5),'WORLD BEST - '+levelName,'NO TIMES YET');
-  else renderBoard(bestTimesFor(levelName),'BEST TIMES - '+levelName,'NO TIMES YET');
-  fetchGlobal(levelName); // refresh in the background, re-renders when it lands
+  const tier=tierForBoard();
+  const key=boardKey(levelName,tier);
+  const label=levelName+' L'+tier;
+  const g=lbCache[key];
+  if(g) renderBoard(g.slice(0,5),'WORLD BEST - '+label,'NO TIMES YET');
+  else renderBoard(bestTimesFor(levelName,tier),'BEST TIMES - '+label,'NO TIMES YET');
+  fetchGlobal(levelName,tier); // refresh in the background, re-renders when it lands
 }
 function recordClearRun(){
   if(G.runSubmitted) return;
   G.runSubmitted=true;
-  const entry={name:getPlayerName(),level:CUR.name,time:G.time,pickups:G.bananas,letters:G.letters.size,at:Date.now()};
+  const entry={name:getPlayerName(),level:CUR.name,tier:G.level,time:G.time,pickups:G.bananas,letters:G.letters.size,at:Date.now()};
   const rows=loadRuns();
   rows.push(entry);
-  rows.sort((a,b)=>a.level.localeCompare(b.level)||a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at);
+  rows.sort((a,b)=>a.level.localeCompare(b.level)||(a.tier||1)-(b.tier||1)||a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at);
   saveRuns(rows);
   submitGlobal(entry);
   updateLeaderboardUI();
@@ -2038,7 +2045,8 @@ function drawTitle(){
   ctext('JUNGLE - PIPES - EMERALD ZONES',92,'#fff',6);
   if((G.stateT&63)<44) ctext('PRESS ENTER TO PLAY',118,'#fff',7);
   ctext('ZONE: < '+LEVELS[G.selLevel].name+' >',136,'#ffd23e',6);
-  const best=(lbCache[LEVELS[G.selLevel].name]||[])[0]||bestTimesFor(LEVELS[G.selLevel].name)[0];
+  const selName=LEVELS[G.selLevel].name;
+  const best=(lbCache[boardKey(selName,1)]||[])[0]||bestTimesFor(selName,1)[0];
   ctext(best?'BEST '+best.name+' '+formatRunTime(best.time):'NO BEST TIME YET',150,'#cdd',5);
   ctext('RUN: A/D  JUMP: SPACE (2X!)  ROLL: SHIFT',166,'#9ab',5);
   const fr=HERO.frames[['run1','run2','run3','run4'][(G.stateT>>3)%4]];
