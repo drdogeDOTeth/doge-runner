@@ -977,7 +977,7 @@ const G={
   inCart:false, cart:null, cartUsed:false,
   drops:[], warpLock:false, flashT:0,
   keys:{L:false,R:false,J:false,Jheld:false,Dn:false},
-  paused:false, runSubmitted:false, fourthShown:false, fourthClear:false,
+  paused:false, runSubmitted:false,
 };
 window.DKC=G;
 const sf=()=>1+(G.level-1)*0.15; // enemy speed factor per loop
@@ -1094,7 +1094,7 @@ function startLevel(freshLetters){
   updateLeaderboardUI();
 }
 function newGame(){
-  G.level=1; G.lives=4; G.bananas=0; G.fourthShown=false; G.fourthClear=false;
+  G.level=1; G.lives=4; G.bananas=0;
   G.startIdx=G.selLevel;
   startLevel(true);
 }
@@ -1325,8 +1325,6 @@ function updatePlayer(){
   /* --- goal --- */
   if(P.onGround&&P.x>GOALX-24&&P.x<GOALX+40){
     recordClearRun();
-    G.fourthClear=!G.fourthShown;
-    G.fourthShown=true;
     G.mode='clear'; G.stateT=0; sfx.clear();
   }
 }
@@ -1864,9 +1862,8 @@ function drawHUD(){
   }
   otext('L'+G.level,290,6,'#39e6ff',6);
 }
-function drawFourthFireworks(){
+function drawClearFireworks(){
   const t=G.stateT;
-  ctx.fillStyle='rgba(2,3,18,.58)'; ctx.fillRect(0,48,VW,132);
   const colors=['#ff2d55','#fff7e6','#39e6ff','#2f6df6'];
   const bursts=[
     {x:62,y:82,start:8,r:28},{x:160,y:62,start:22,r:34},{x:254,y:86,start:36,r:30},
@@ -1889,10 +1886,6 @@ function drawFourthFireworks(){
     }
     ctx.globalAlpha=1;
   }
-  ctx.fillStyle='rgba(5,4,13,.72)'; ctx.fillRect(35,92,250,38);
-  ctx.strokeStyle=(t&16)?'#ff2d55':'#39e6ff'; ctx.strokeRect(34.5,91.5,251,39);
-  ctext('HAPPY 4TH',98,(t&8)?'#fff7e6':'#ffd23e',8);
-  ctext('OF JULY!',115,(t&8)?'#39e6ff':'#ff2d55',8);
 }
 function drawCartWorld(){
   const camX=G.camX, camY=G.camY, P=G.P, C=G.cart;
@@ -2014,9 +2007,9 @@ function draw(){
   }
   if(G.mode==='clear'){
     ctx.fillStyle='rgba(10,8,20,.6)'; ctx.fillRect(0,66,VW,100);
-    if(G.fourthClear) drawFourthFireworks();
+    drawClearFireworks();
     ctext('LEVEL CLEAR!',76,'#ffd23e');
-    if(G.stateT>40&&!G.fourthClear){
+    if(G.stateT>40){
       ctext('PICKUPS '+G.bananas,100,'#fff',6);
       ctext('LETTERS '+[...'DOGE'].filter(c=>G.letters.has(c)).join(' '),114,'#fff',6);
       ctext('TIME '+Math.floor(G.time/60)+'s',128,'#fff',6);

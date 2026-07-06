@@ -382,7 +382,7 @@ const G={
   P:null, barrels:[], fires:[], hammers:[], pops:[], fx:[],
   ape:{timer:120, phase:'beat'}, drumLit:false,
   keys:{L:false,R:false,U:false,D:false,J:false},
-  paused:false, stateT:0, bassT:0, bassHi:false, runSubmitted:false, fourthShown:false, fourthClear:false,
+  paused:false, stateT:0, bassT:0, bassHi:false, runSubmitted:false,
 };
 window.DK=G; // debug handle
 window.DK.step=(n=1)=>{for(let i=0;i<n;i++)update();};
@@ -485,7 +485,7 @@ function startLevel(fresh){
   if(fresh){ G.mode='intro'; G.stateT=0; }
 }
 function newGame(){
-  G.level=1; G.score=0; G.lives=3; G.time=0; G.runSubmitted=false; G.fourthShown=false; G.fourthClear=false;
+  G.level=1; G.score=0; G.lives=3; G.time=0; G.runSubmitted=false;
   startLevel(true);
   updateLeaderboardUI();
 }
@@ -592,7 +592,7 @@ function updatePlayer(){
       h.taken=true; P.hammer=420; sfx.pickup();
     }
     // reached the top platform -> rescue!
-    if(P.floor===6){ G.fourthClear=!G.fourthShown; G.fourthShown=true; G.mode='win'; G.stateT=0; addScore(G.bonus); sfx.win(); return; }
+    if(P.floor===6){ G.mode='win'; G.stateT=0; addScore(G.bonus); sfx.win(); return; }
   }
 }
 
@@ -843,9 +843,8 @@ function drawHUD(){
   text('L='+(''+G.level).padStart(2,'0'),192,3,'#39e6ff',6);
   for(let i=0;i<G.lives;i++) ctx.drawImage(HERO.frames.idle,4+i*10,20,8,10);
 }
-function drawFourthFireworks(){
+function drawClearFireworks(){
   const t=G.stateT;
-  ctx.fillStyle='rgba(2,3,18,.65)'; ctx.fillRect(0,70,W,104);
   const colors=['#ff3d5e','#fff7e6','#39e6ff','#2450d8'];
   const bursts=[{x:46,y:98,start:8,r:22},{x:112,y:86,start:24,r:28},{x:178,y:102,start:40,r:22},{x:86,y:140,start:58,r:18},{x:152,y:138,start:72,r:20}];
   for(const b of bursts){
@@ -862,10 +861,6 @@ function drawFourthFireworks(){
     }
     ctx.globalAlpha=1;
   }
-  ctx.fillStyle='rgba(5,4,13,.78)'; ctx.fillRect(21,106,182,38);
-  ctx.strokeStyle=(t&16)?'#ff3d5e':'#39e6ff'; ctx.strokeRect(20.5,105.5,183,39);
-  ctext('HAPPY 4TH',112,(t&8)?'#fff7e6':'#ffd23e',7);
-  ctext('OF JULY!',128,(t&8)?'#39e6ff':'#ff3d5e',7);
 }
 function draw(){
   if(G.mode==='title'){ drawTitle(); return; }
@@ -902,8 +897,8 @@ function draw(){
   }
   if(G.mode==='win'){
     ctx.drawImage(SPR.heart.img,G.P.x-5,G.P.y-HERO.h-16);
-    if(G.fourthClear) drawFourthFireworks();
-    else if(G.stateT>60){ ctext('RESCUED!',120,'#ff5fd0'); ctext('BONUS '+G.bonus,138,'#ffd23e',6); }
+    drawClearFireworks();
+    if(G.stateT>60){ ctext('RESCUED!',120,'#ff5fd0'); ctext('BONUS '+G.bonus,138,'#ffd23e',6); }
   }
   if(G.mode==='gameover'){
     ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(0,96,W,56);
