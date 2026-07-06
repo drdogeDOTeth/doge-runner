@@ -51,6 +51,24 @@ github.com → your packages, or add registry credentials in Coolify.)
 - Rumor has it one of the pipes in Pipe Panic goes somewhere... old-school rules
   apply. And something shiny sits on the highest plank in Emerald Rush.
 
+## Leaderboards
+
+- Every **(zone, difficulty level)** has its own board — a fast run at L4 never
+  competes against an easy L1 run.
+- Set your name in the **PLAYER** box. Best times are kept locally and, if the
+  Cloudflare Worker is configured, globally.
+- Click the leaderboard (or **▲ VIEW FULL BOARD**) to open the full rankings with
+  DOGE-letter and pickup detail.
+- **Notifications:** while you're on the page, the game quietly re-checks the boards
+  you hold times on. If someone beats one of your times you get a toast + an entry in
+  the 🔔 NOTIFICATIONS panel. Existing standings are seeded silently the first time,
+  so you're only alerted to *new* beats.
+- **Anti-cheat:** the Worker rejects impossible sub-10-second times on write and hides
+  any that slipped in earlier (self-healing on deploy). A secret-gated `/admin` route
+  (`purge` / `delete` / `list`) is available for moderation — set an `ADMIN_TOKEN`
+  Worker secret to use it. **Redeploy `worker/leaderboard.js` to Cloudflare** to activate
+  per-difficulty global boards, the anti-cheat filter, and the full-board `limit` param.
+
 ## Your avatar
 
 Drop a `.vrm` or `.glb` anywhere on either page. The model's skeleton is procedurally posed

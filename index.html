@@ -45,9 +45,42 @@
     border-radius:3px; text-transform:uppercase; outline:none; }
   .playerInput:focus{ border-color:var(--yellow); color:var(--yellow); }
   #leaderboard{ display:grid; gap:3px; margin-top:6px; color:#cdd; }
+  #leaderboard{ cursor:pointer; }
   .lbRow{ display:grid; grid-template-columns:16px 1fr auto; gap:6px; align-items:center; }
   .lbRow.me{ color:var(--yellow); }
   .lbMeta{ color:#778; margin-top:6px; }
+  .lbHint{ color:var(--cyan); font-size:7px; margin-top:5px; cursor:pointer; user-select:none; }
+  .lbHint:hover{ color:var(--yellow); }
+  #notifyPanel{ margin-top:8px; border-top:1px solid #2a2a44; padding-top:6px; }
+  .notifyHead{ font-size:8px; color:var(--yellow); display:flex; justify-content:space-between; }
+  .notifyHead span{ color:#889; cursor:pointer; font-size:7px; }
+  .notifyHead span:hover{ color:var(--red); }
+  #notifyList{ display:grid; gap:4px; margin-top:5px; }
+  .notifyRow{ font-size:7px; line-height:1.6; color:#cdd; background:#16162a; border-left:2px solid var(--red);
+    padding:4px 6px; border-radius:2px; }
+  .notifyRow b{ color:var(--yellow); }
+  .notifyRow.fresh{ border-left-color:var(--yellow); }
+  #lbModal{ position:fixed; inset:0; background:rgba(4,4,12,.8); display:none; z-index:60;
+    align-items:center; justify-content:center; padding:16px; }
+  #lbModal.on{ display:flex; }
+  #lbModalCard{ background:#0d0d1c; border:3px solid #3a3a5a; border-radius:6px; width:min(440px,94vw);
+    max-height:86vh; display:flex; flex-direction:column; box-shadow:0 0 40px rgba(57,230,255,.15); }
+  #lbModalHead{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px;
+    border-bottom:1px solid #2a2a44; font-size:11px; color:var(--yellow); }
+  #lbModalClose{ background:none; border:none; color:#cdd; font-size:20px; cursor:pointer; line-height:1;
+    font-family:inherit; }
+  #lbModalClose:hover{ color:var(--red); }
+  #lbModalRows{ overflow-y:auto; padding:10px 14px; display:grid; gap:5px; font-size:9px; }
+  #lbModalRows .lbRow{ grid-template-columns:26px 1fr auto auto; gap:10px; }
+  #lbModalRows .lbRow span.det{ color:#778; font-size:7px; }
+  #lbModalRows .lbRow.me{ background:rgba(255,210,62,.08); border-radius:2px; }
+  #lbModalMeta{ padding:0 14px 12px; }
+  #toastWrap{ position:fixed; right:14px; bottom:14px; z-index:70; display:grid; gap:8px; max-width:280px; }
+  .toast{ background:#141428; border:2px solid var(--yellow); border-radius:5px; padding:9px 11px;
+    font-size:8px; line-height:1.7; color:#e8e8f0; box-shadow:0 4px 20px rgba(0,0,0,.5);
+    animation:toastIn .25s ease-out; cursor:pointer; }
+  .toast b{ color:var(--yellow); }
+  @keyframes toastIn{ from{ transform:translateY(14px); opacity:0; } to{ transform:none; opacity:1; } }
   button.retro{ font-family:inherit; font-size:8px; background:#1c1c30; color:#e8e8f0;
     border:1px solid #3a3a5a; border-bottom-width:3px; border-radius:3px; padding:6px 8px;
     cursor:pointer; margin-top:8px; }
@@ -80,8 +113,13 @@
     <div style="color:#889">tip: roll off a ledge, then double jump!</div>
     <h2>&#9654; PLAYER</h2>
     <input class="playerInput" id="playerName" maxlength="10" value="PLAYER 1" aria-label="Player name">
-    <div id="leaderboard"></div>
+    <div id="leaderboard" title="Click to see the full leaderboard"></div>
     <div class="lbMeta" id="leaderboardMeta"></div>
+    <div class="lbHint" id="lbExpand">&#9650; VIEW FULL BOARD</div>
+    <div id="notifyPanel" style="display:none">
+      <div class="notifyHead">&#128276; NOTIFICATIONS <span id="notifyClear">clear</span></div>
+      <div id="notifyList"></div>
+    </div>
     <h2>&#9654; CUSTOM MODELS</h2>
     <div style="color:#889">Pick a slot, then drop a model &mdash; hero or critter!</div>
     <div id="slotRow">
@@ -110,6 +148,14 @@
   </aside>
 </main>
 <div id="dragOverlay">DROP TO PIXELIZE!</div>
+<div id="lbModal" role="dialog" aria-modal="true">
+  <div id="lbModalCard">
+    <div id="lbModalHead"><span id="lbModalTitle">LEADERBOARD</span><button id="lbModalClose" aria-label="Close">&times;</button></div>
+    <div id="lbModalRows"></div>
+    <div class="lbMeta" id="lbModalMeta"></div>
+  </div>
+</div>
+<div id="toastWrap"></div>
 <footer>DOGE RUNNER &mdash; original pixel art &amp; code. VRM/GLB avatars are converted to sprites locally in your browser.</footer>
 
 <script type="importmap">
@@ -1071,6 +1117,120 @@ if(playerNameEl){
   playerNameEl.addEventListener('input',()=>{ playerNameEl.value=cleanName(playerNameEl.value); localStorage.setItem(PLAYER_KEY,playerNameEl.value); updateLeaderboardUI(); });
   playerNameEl.addEventListener('blur',()=>{ playerNameEl.value=getPlayerName(); localStorage.setItem(PLAYER_KEY,playerNameEl.value); updateLeaderboardUI(); });
 }
+
+/* ===== full-board modal + "your score was beaten" notifications ===== */
+const NOTIFY_KEY='dkc_notify_state';
+const lbModal=document.getElementById('lbModal');
+const lbModalRows=document.getElementById('lbModalRows');
+const lbModalTitle=document.getElementById('lbModalTitle');
+const lbModalMeta=document.getElementById('lbModalMeta');
+const notifyPanel=document.getElementById('notifyPanel');
+const notifyListEl=document.getElementById('notifyList');
+const toastWrap=document.getElementById('toastWrap');
+function loadNotify(){ try{ const d=JSON.parse(localStorage.getItem(NOTIFY_KEY)||'{}'); return {boards:d.boards||{},log:d.log||[]}; }catch(e){ return {boards:{},log:[]}; } }
+function saveNotify(){ try{ localStorage.setItem(NOTIFY_KEY,JSON.stringify(notifyState)); }catch(e){} }
+let notifyState=loadNotify();
+
+async function fetchBoard(levelName,tier,limit){
+  if(!LB_API) return null;
+  try{
+    const r=await fetch(LB_API+'/runner?level='+encodeURIComponent(levelName)+'&tier='+tier+'&limit='+(limit||50));
+    if(!r.ok) return null;
+    const rows=await r.json();
+    return Array.isArray(rows)?rows:null;
+  }catch(e){ return null; }
+}
+function allLocalTimes(levelName,tier){
+  const rows=loadRuns().filter(r=>r.level===levelName&&(r.tier||1)===tier)
+    .sort((a,b)=>a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at);
+  const seen=new Set(), out=[];
+  for(const r of rows){ if(seen.has(r.name))continue; seen.add(r.name); out.push(r); }
+  return out;
+}
+function renderModalRows(rows){
+  const me=getPlayerName();
+  lbModalRows.innerHTML=rows.length?rows.map((r,i)=>'<div class="lbRow '+(r.name===me?'me':'')+'">'
+    +'<span>#'+(i+1)+'</span><span>'+safeName(r.name)+'</span>'
+    +'<span class="det">'+(r.letters||0)+'/4 '+(r.pickups||0)+'p</span>'
+    +'<span>'+formatRunTime(r.time)+'</span></div>').join(''):'<div class="lbMeta">NO TIMES YET</div>';
+}
+async function openLbModal(){
+  const levelName=levelForBoard(), tier=tierForBoard();
+  lbModalTitle.textContent=levelName+' L'+tier;
+  lbModal.classList.add('on');
+  lbModalMeta.textContent='LOADING...';
+  const global=await fetchBoard(levelName,tier,50);
+  if(!lbModal.classList.contains('on')) return; // closed while loading
+  const rows=global||allLocalTimes(levelName,tier);
+  renderModalRows(rows);
+  lbModalMeta.textContent=(global?'WORLD RANKINGS':'YOUR LOCAL TIMES')+' — '+rows.length+' shown';
+}
+function closeLbModal(){ lbModal.classList.remove('on'); }
+
+function renderNotifyPanel(){
+  const log=notifyState.log||[];
+  if(!log.length){ notifyPanel.style.display='none'; return; }
+  notifyPanel.style.display='block';
+  notifyListEl.innerHTML=log.slice(0,12).map(n=>'<div class="notifyRow'+(n.fresh?' fresh':'')+'">'+n.text+'</div>').join('');
+}
+function pushToast(html){
+  const t=document.createElement('div');
+  t.className='toast'; t.innerHTML=html; t.onclick=()=>t.remove();
+  toastWrap.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),320); },8000);
+}
+function addNotification(text,toast){
+  notifyState.log.unshift({text,at:Date.now(),fresh:true});
+  if(notifyState.log.length>30) notifyState.log.length=30;
+  saveNotify(); renderNotifyPanel();
+  if(toast) pushToast(text);
+}
+function playerBoards(){
+  const me=getPlayerName(), seen=new Set(), out=[];
+  for(const r of loadRuns()){
+    if(r.name!==me) continue;
+    const k=boardKey(r.level,r.tier||1);
+    if(seen.has(k)) continue; seen.add(k);
+    out.push({level:r.level,tier:r.tier||1,key:k});
+  }
+  return out;
+}
+let notifyBusy=false;
+async function checkBeaten(){
+  if(!LB_API||notifyBusy) return;
+  notifyBusy=true;
+  try{
+    const me=getPlayerName();
+    notifyState.log.forEach(n=>n.fresh=false); // only this cycle's alerts glow
+    for(const b of playerBoards()){
+      const rows=await fetchBoard(b.level,b.tier,100);
+      if(!rows) continue;
+      const mine=rows.find(r=>r.name===me);
+      if(!mine) continue; // player not on this global board yet
+      const beaters=rows.filter(r=>r.name!==me&&r.time<mine.time);
+      const names=beaters.map(r=>r.name);
+      const prev=notifyState.boards[b.key];
+      if(!prev){ notifyState.boards[b.key]={myTime:mine.time,beaters:names}; continue; } // seed silently
+      for(const r of beaters) if(!prev.beaters.includes(r.name))
+        addNotification('<b>'+safeName(r.name)+'</b> beat your '+b.level+' L'+b.tier
+          +' time — '+formatRunTime(r.time)+' vs your '+formatRunTime(mine.time),true);
+      notifyState.boards[b.key]={myTime:mine.time,beaters:names};
+    }
+    saveNotify();
+  }finally{ notifyBusy=false; }
+}
+if(lbModal){
+  leaderboardEl.addEventListener('click',openLbModal);
+  const lbExpand=document.getElementById('lbExpand'); if(lbExpand) lbExpand.addEventListener('click',openLbModal);
+  document.getElementById('lbModalClose').addEventListener('click',closeLbModal);
+  lbModal.addEventListener('click',e=>{ if(e.target===lbModal) closeLbModal(); });
+  document.getElementById('notifyClear').addEventListener('click',()=>{ notifyState.log=[]; saveNotify(); renderNotifyPanel(); });
+  addEventListener('keydown',e=>{ if(e.code==='Escape'&&lbModal.classList.contains('on')){ e.stopPropagation(); closeLbModal(); } },true);
+  renderNotifyPanel();
+  setTimeout(checkBeaten,4000);
+  setInterval(checkBeaten,50000);
+}
+window.DKC.checkBeaten=checkBeaten; // debug hook
 
 function resetPlayer(atCp){
   const x=atCp&&G.cp?STARB.x:60;
