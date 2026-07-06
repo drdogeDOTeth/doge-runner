@@ -111,6 +111,7 @@
     <div><kbd>SPACE</kbd> jump &mdash; press again in mid-air to <b>double jump</b>!</div>
     <div><kbd>SHIFT</kbd>/<kbd>X</kbd> roll attack &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</div>
     <div style="color:#889">tip: roll off a ledge, then double jump!</div>
+    <div style="color:var(--green)">&#127918; GAMEPAD: D-pad/stick move &middot; A jump &middot; X/LB/RB roll &middot; Start pause</div>
     <h2>&#9654; PLAYER</h2>
     <input class="playerInput" id="playerName" maxlength="10" value="PLAYER 1" aria-label="Player name">
     <div id="leaderboard" title="Click to see the full leaderboard"></div>
@@ -2214,9 +2215,54 @@ function drawTitle(){
 }
 
 /* ================= MAIN LOOP ================= */
+/* ================= GAMEPAD =================
+   Edge-triggered so it mirrors the keyboard's keydown/keyup semantics exactly
+   (one jump/roll/confirm per press; held directions persist across sub-steps). */
+let gpIndex=null;
+addEventListener('gamepadconnected',e=>{ gpIndex=e.gamepad.index;
+  if(typeof pushToast==='function') pushToast('&#127918; GAMEPAD CONNECTED'); });
+addEventListener('gamepaddisconnected',e=>{ if(gpIndex===e.gamepad.index) gpIndex=null; });
+const padPrev={};
+function padEdge(name,pressed,onDown,onUp){
+  const was=!!padPrev[name];
+  if(pressed&&!was){ padPrev[name]=true; if(onDown)onDown(); }
+  else if(!pressed&&was){ padPrev[name]=false; if(onUp)onUp(); }
+}
+function padConfirm(){
+  if(G.mode==='title'||G.mode==='gameover') newGame();
+  else if(G.mode==='clear'&&G.stateT>90){ G.level++; startLevel(true); }
+}
+function padZone(dir){
+  if(G.mode!=='title') return;
+  G.selLevel=(G.selLevel+dir+LEVELS.length)%LEVELS.length;
+  loadLevel(G.selLevel); updateLeaderboardUI(); sfx.banana();
+}
+function pollGamepad(){
+  const pads=navigator.getGamepads?navigator.getGamepads():[];
+  let gp=(gpIndex!=null&&pads[gpIndex])?pads[gpIndex]:null;
+  if(!gp){ for(const p of pads) if(p){ gp=p; gpIndex=p.index; break; } }
+  if(!gp) return;
+  const b=gp.buttons, ax=gp.axes, B=i=>!!(b[i]&&b[i].pressed);
+  const axX=ax[0]||0, axY=ax[1]||0;
+  const left=B(14)||axX<-0.45, right=B(15)||axX>0.45, down=B(13)||axY>0.5;
+  const jump=B(0), roll=B(2)||B(3)||B(4)||B(5), start=B(9);
+  padEdge('L',left,()=>{ ensureAudio(); padZone(-1); G.keys.L=true; },()=>{ G.keys.L=false; });
+  padEdge('R',right,()=>{ ensureAudio(); padZone(1); G.keys.R=true; },()=>{ G.keys.R=false; });
+  padEdge('Dn',down,()=>{ G.keys.Dn=true; },()=>{ G.keys.Dn=false; });
+  padEdge('J',jump,()=>{ ensureAudio();
+    if(G.mode==='play'||G.mode==='cart'){ G.keys.J=true; G.keys.Jheld=true; if(G.P)G.P.jbuf=7; }
+    else padConfirm();
+  },()=>{ G.keys.Jheld=false; if(G.P&&G.P.vy<-2&&G.P.inBarrel<0) G.P.vy=-2; });
+  padEdge('roll',roll,()=>{ if(G.mode==='play'||G.mode==='cart') G.keys.rollQ=true; });
+  padEdge('start',start,()=>{ ensureAudio();
+    if(G.mode==='play'||G.mode==='cart') G.paused=!G.paused; else padConfirm();
+  });
+}
+
 let last=0, acc=0;
 function loop(ts){
   requestAnimationFrame(loop);
+  pollGamepad();
   if(!last)last=ts;
   acc+=Math.min(ts-last,100); last=ts;
   const STEP=1000/60;
@@ -2227,6 +2273,7 @@ function loop(ts){
 requestAnimationFrame(loop);
 window.DKC.step=(n=1)=>{for(let i=0;i<n;i++)update();};
 window.DKC.go=n=>{G.startIdx=0; G.level=n; startLevel(true);}; // debug: jump to level n
+window.DKC.pollGamepad=pollGamepad; // debug hook
 loadLevel(0); // paint the title-screen background
 
 /* ============================================================
