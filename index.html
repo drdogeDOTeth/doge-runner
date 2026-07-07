@@ -1318,7 +1318,7 @@ function paintMoon(){
 
 /* ================= GAME STATE ================= */
 const G={
-  mode:'title', t:0, stateT:0, level:1, selLevel:0, startIdx:0, mapSel:0,
+  mode:'title', t:0, stateT:0, level:1, selLevel:0, startIdx:0, mapZone:0, mapDiff:1,
   lives:4, hearts:2, bananas:0, letters:new Set(), time:0,
   P:null, enemies:[], bananasLeft:[], bunches:[], lettersLeft:[],
   fx:[], camX:0, camY:20, cp:false, starHit:false,
@@ -1348,8 +1348,8 @@ function formatRunTime(frames){
   const total=Math.floor(frames/60), m=Math.floor(total/60), s=total%60;
   return m?m+':'+('0'+s).slice(-2):s+'s';
 }
-function levelForBoard(){ if(G.mode==='map') return mapNodes[G.mapSel].name; return CUR?CUR.name:LEVELS[G.selLevel].name; }
-function tierForBoard(){ if(G.mode==='map') return mapNodes[G.mapSel].level; return (G.mode==='title'||G.mode==='gameover')?1:(G.level||1); }
+function levelForBoard(){ if(G.mode==='map') return LEVELS[G.mapZone].name; return CUR?CUR.name:LEVELS[G.selLevel].name; }
+function tierForBoard(){ if(G.mode==='map') return G.mapDiff; return (G.mode==='title'||G.mode==='gameover')?1:(G.level||1); }
 function boardKey(levelName,tier){ return levelName+'#'+tier; }
 function bestTimesFor(levelName,tier){
   const rows=loadRuns().filter(r=>r.level===levelName&&(r.tier||1)===tier)
@@ -1407,6 +1407,7 @@ function recordClearRun(){
   if(G.runSubmitted) return;
   G.runSubmitted=true;
   const entry={name:getPlayerName(),level:CUR.name,tier:G.level,time:G.time,pickups:G.bananas,letters:G.letters.size,at:Date.now()};
+  markCleared(CUR.name,G.level);
   const rows=loadRuns();
   rows.push(entry);
   rows.sort((a,b)=>a.level.localeCompare(b.level)||(a.tier||1)-(b.tier||1)||a.time-b.time||b.letters-a.letters||b.pickups-a.pickups||b.at-a.at);
@@ -1578,31 +1579,46 @@ function placedDrops(){
   return ((CUR&&CUR.placed)||[]).map(d=>({...d,vy:0,vx:0,onG:true,age:0,keep:true}));
 }
 
-/* ================= WORLD MAP (level select) ================= */
-const MAP_LEN=12; // L1..L12 = three loops through the four zones, progressively harder
-const mapNodes=[];
-for(let i=0;i<MAP_LEN;i++){
-  const zi=i%LEVELS.length;
-  mapNodes.push({level:i+1, zoneIdx:zi, name:LEVELS[zi].name, theme:LEVELS[zi].theme,
-    x:70+i*78, y:150+Math.sin(i*0.85)*30});
-}
-const MAP_W=mapNodes[MAP_LEN-1].x+70;
+/* ================= WORLD MAP (level select) =================
+   One difficulty ladder per zone. Each zone unlocks its next difficulty when
+   you clear the current one, so you can climb a single zone (e.g. Crater
+   Cruise) to its max without replaying the others. */
+const MAP_MAXDIFF=10;
+const MAP_GAP=44, MAP_X0=58, MAP_ROWY=[54,92,130,168];
 let mapCamX=0;
+const PROGRESS_KEY='dkc_zone_progress';
+function loadProgress(){ try{ return JSON.parse(localStorage.getItem(PROGRESS_KEY)||'{}')||{}; }catch(e){ return {}; } }
+let zoneProgress=loadProgress();
+const clearedMax=z=>zoneProgress[z]||0;                             // highest difficulty cleared
+const unlockedMax=z=>Math.min(MAP_MAXDIFF,clearedMax(z)+1);         // + the next one to attempt
+function markCleared(z,d){ if(d>clearedMax(z)){ zoneProgress[z]=d; try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(zoneProgress));}catch(e){} } }
+function nodeAbsX(d){ return MAP_X0+(d-1)*MAP_GAP; }
+function mapCamTarget(){ return clamp(nodeAbsX(G.mapDiff)-VW*0.55, 0, Math.max(0,nodeAbsX(MAP_MAXDIFF)+40-VW)); }
 function enterMap(fresh){
-  if(fresh){ G.lives=4; G.bananas=0; G.mapSel=0; }
-  G.mode='map'; G.stateT=0;
-  mapCamX=clamp(mapNodes[G.mapSel].x-VW/2,0,Math.max(0,MAP_W-VW));
+  if(fresh){ G.lives=4; G.bananas=0; }
+  G.mapZone=clamp(G.mapZone||0,0,LEVELS.length-1);
+  G.mapDiff=clamp(G.mapDiff||1,1,unlockedMax(LEVELS[G.mapZone].name));
+  G.mode='map'; G.stateT=0; mapCamX=mapCamTarget();
   updateLeaderboardUI();
 }
-function mapMove(dir){
-  const ns=clamp(G.mapSel+dir,0,MAP_LEN-1);
-  if(ns===G.mapSel) return;
-  G.mapSel=ns; ensureAudio(); sfx.banana(); updateLeaderboardUI();
+function mapSetZone(z){
+  const nz=clamp(z,0,LEVELS.length-1); if(nz===G.mapZone) return;
+  G.mapZone=nz; G.mapDiff=clamp(G.mapDiff,1,unlockedMax(LEVELS[nz].name));
+  ensureAudio(); sfx.banana(); updateLeaderboardUI();
+}
+function mapSetDiff(d){
+  const mx=unlockedMax(LEVELS[G.mapZone].name), nd=clamp(d,1,mx); if(nd===G.mapDiff) return;
+  G.mapDiff=nd; ensureAudio(); sfx.banana(); updateLeaderboardUI();
 }
 function startMapNode(){
-  const n=mapNodes[G.mapSel];
-  G.level=n.level; G.startIdx=0; // (0+level-1)%LEN == zoneIdx, so this zone at difficulty=level
-  startLevel(true);              // keeps lives/bananas across the session
+  const zi=G.mapZone, d=G.mapDiff, len=LEVELS.length;
+  G.level=d; G.startIdx=((zi-(d-1))%len+len)%len; // (startIdx+d-1)%len == zi -> this zone at difficulty d
+  startLevel(true);                                // keeps lives/bananas across the session
+}
+function mapReturnAfterClear(){
+  const zi=LEVELS.findIndex(l=>l.name===(CUR&&CUR.name)); // progress already marked in recordClearRun
+  if(zi>=0){ G.mapZone=zi; G.mapDiff=Math.min(unlockedMax(LEVELS[zi].name),G.level+1); }
+  enterMap(false);
 }
 
 /* ================= INPUT ================= */
@@ -1612,8 +1628,10 @@ addEventListener('keydown',e=>{
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(k)) e.preventDefault();
   ensureAudio();
   if(G.mode==='map'&&!e.repeat){
-    if(k==='ArrowLeft'||k==='KeyA') mapMove(-1);
-    else if(k==='ArrowRight'||k==='KeyD') mapMove(1);
+    if(k==='ArrowLeft'||k==='KeyA') mapSetDiff(G.mapDiff-1);
+    else if(k==='ArrowRight'||k==='KeyD') mapSetDiff(G.mapDiff+1);
+    else if(k==='ArrowUp'||k==='KeyW') mapSetZone(G.mapZone-1);
+    else if(k==='ArrowDown'||k==='KeyS') mapSetZone(G.mapZone+1);
   }
   if(k==='ArrowLeft'||k==='KeyA')G.keys.L=true;
   if(k==='ArrowRight'||k==='KeyD')G.keys.R=true;
@@ -1626,7 +1644,7 @@ addEventListener('keydown',e=>{
   if(k==='Enter'||k==='Space'){
     if(G.mode==='title'||G.mode==='gameover') enterMap(true);
     else if(G.mode==='map') startMapNode();
-    else if(G.mode==='clear'&&G.stateT>90){ G.mapSel=Math.min(G.level,MAP_LEN-1); enterMap(false); }
+    else if(G.mode==='clear'&&G.stateT>90){ mapReturnAfterClear(); }
   }
 });
 addEventListener('keyup',e=>{
@@ -2076,7 +2094,7 @@ function updateCart(){
 function update(){
   G.t++;
   if(G.flashT>0)G.flashT--;
-  if(G.mode==='map'){ G.stateT++; mapCamX=lerp(mapCamX,clamp(mapNodes[G.mapSel].x-VW/2,0,Math.max(0,MAP_W-VW)),0.15); return; }
+  if(G.mode==='map'){ G.stateT++; mapCamX=lerp(mapCamX,mapCamTarget(),0.15); return; }
   if(G.mode==='title'||G.mode==='gameover'){ G.stateT++; return; }
   if(G.mode==='intro'){ G.stateT++; if(G.stateT>110)G.mode='play'; updateCamera(); return; }
   if(G.mode==='clear'){
@@ -2630,37 +2648,51 @@ function drawMapEmblem(x,y,theme){
 function drawMap(){
   const g=ctx;
   const grd=g.createLinearGradient(0,0,0,VH);
-  grd.addColorStop(0,'#3a2a6a'); grd.addColorStop(0.5,'#5a6ac8'); grd.addColorStop(1,'#8ad0e0');
+  grd.addColorStop(0,'#2a2060'); grd.addColorStop(0.5,'#4a5ab0'); grd.addColorStop(1,'#7ac0d8');
   g.fillStyle=grd; g.fillRect(0,0,VW,VH);
-  for(let i=0;i<5;i++){ g.fillStyle='rgba(255,255,255,.14)'; const cx=((i*97-mapCamX*0.15)%(VW+60)+VW+60)%(VW+60)-30; g.beginPath(); g.ellipse(cx,26+i*7,16,5,0,0,7); g.fill(); }
-  g.fillStyle='#3f8a4f'; for(let x=-((mapCamX*0.4)%88)-44;x<VW+88;x+=88){ g.beginPath(); g.arc(x,214,64,Math.PI,0); g.fill(); }
-  g.fillStyle='#2f6a3f'; for(let x=-((mapCamX*0.7)%68)-34;x<VW+68;x+=68){ g.beginPath(); g.arc(x,226,50,Math.PI,0); g.fill(); }
-  // winding path
-  g.strokeStyle='#e8d59a'; g.lineWidth=4; g.setLineDash([3,5]); g.lineCap='round';
-  g.beginPath();
-  for(let i=0;i<MAP_LEN;i++){ const nx=mapNodes[i].x-mapCamX, ny=mapNodes[i].y; i?g.lineTo(nx,ny):g.moveTo(nx,ny); }
-  g.stroke(); g.setLineDash([]);
-  // nodes
-  for(let i=0;i<MAP_LEN;i++){
-    const n=mapNodes[i], nx=Math.round(n.x-mapCamX), ny=Math.round(n.y);
-    if(nx<-24||nx>VW+24) continue;
-    if(i===G.mapSel){ g.strokeStyle='#ffd23e'; g.lineWidth=2; const r=15+Math.sin(G.t*0.2)*1.6; g.beginPath(); g.arc(nx,ny,r,0,7); g.stroke(); }
-    drawMapEmblem(nx,ny,n.theme);
-    otext('L'+n.level,nx-(''+n.level).length*3-2,ny+13,i===G.mapSel?'#ffd23e':'#dde',5);
+  for(let i=0;i<5;i++){ g.fillStyle='rgba(255,255,255,.12)'; const cx=((i*97-mapCamX*0.1)%(VW+60)+VW+60)%(VW+60)-30; g.beginPath(); g.ellipse(cx,34+i*4,15,4,0,0,7); g.fill(); }
+  const zoneName=LEVELS[G.mapZone].name;
+  const emblemFor=z=>LEVELS[z].theme;
+  // one ladder row per zone
+  for(let z=0;z<LEVELS.length;z++){
+    const y=MAP_ROWY[z], sel=z===G.mapZone, umax=unlockedMax(LEVELS[z].name), cmax=clearedMax(LEVELS[z].name);
+    // connecting rail
+    g.strokeStyle=sel?'rgba(255,210,62,.5)':'rgba(255,255,255,.18)'; g.lineWidth=sel?3:2;
+    g.setLineDash([3,5]); g.lineCap='round';
+    g.beginPath(); g.moveTo(nodeAbsX(1)-mapCamX,y); g.lineTo(nodeAbsX(MAP_MAXDIFF)-mapCamX,y); g.stroke(); g.setLineDash([]);
+    for(let d=1;d<=MAP_MAXDIFF;d++){
+      const nx=Math.round(nodeAbsX(d)-mapCamX), ny=y;
+      if(nx<40||nx>VW+16) continue;
+      const locked=d>umax, done=d<=cmax;
+      if(sel&&d===G.mapDiff){ g.strokeStyle='#ffd23e'; g.lineWidth=2; const r=12+Math.sin(G.t*0.2)*1.6; g.beginPath(); g.arc(nx,ny,r,0,7); g.stroke(); }
+      if(locked){
+        g.fillStyle='#14142a'; g.beginPath(); g.arc(nx,ny,9,0,7); g.fill();
+        g.fillStyle='#5a5a72'; g.fillRect(nx-3,ny-1,6,5); g.fillRect(nx-2,ny-4,4,3); // padlock
+        g.fillStyle='#8a8aa2'; g.fillRect(nx-1,ny+1,2,2);
+      } else {
+        drawMapEmblem(nx,ny,emblemFor(z),0.8);
+        if(done){ g.fillStyle='#ffd23e'; for(let s=0;s<5;s++){ const a=-1.57+s*1.257; g.fillRect(Math.round(nx+8+Math.cos(a)*3),Math.round(ny-8+Math.sin(a)*3),1,1);} g.fillStyle='#4db34d'; g.fillRect(nx+6,ny-9,4,1); g.fillRect(nx+7,ny-8,2,1);} // clear tick
+      }
+      otext(''+d,nx-(d>9?4:2),ny+11,sel&&d===G.mapDiff?'#ffd23e':locked?'#667':'#cdd',5);
+    }
+    // pinned zone tab on the left (drawn over the scrolling nodes)
+    g.fillStyle=sel?'rgba(255,210,62,.16)':'rgba(6,6,20,.66)'; g.fillRect(0,y-15,42,30);
+    if(sel){ g.fillStyle='#ffd23e'; g.fillRect(0,y-15,2,30); }
+    drawMapEmblem(20,y,emblemFor(z),0.85);
   }
-  // Doge token hopping on the selected node
-  const sn=mapNodes[G.mapSel], tx=Math.round(sn.x-mapCamX), ty=Math.round(sn.y);
-  const hop=Math.abs(Math.sin(G.t*0.13))*7;
-  ctx.drawImage(HERO.frames[(G.t>>3&1)?'run1':'idle'],tx-(HERO.w/2|0),ty-19-hop|0);
-  // header + footer panels
-  g.fillStyle='rgba(6,6,20,.72)'; g.fillRect(0,0,VW,28);
-  ctext('WORLD MAP',4,'#ffd23e',10);
-  ctext('LEVEL '+sn.level+'  -  '+sn.name,18,'#fff',6);
-  ctx.drawImage(HERO.frames.idle,VW-40,4,10,12); otext('x'+G.lives,VW-28,7,'#fff',6);
-  g.fillStyle='rgba(6,6,20,.72)'; g.fillRect(0,VH-26,VW,26);
-  const best=(lbCache[boardKey(sn.name,sn.level)]||[])[0]||bestTimesFor(sn.name,sn.level)[0];
-  ctext(best?'BEST: '+safeName(best.name)+'  '+formatRunTime(best.time):'BE THE FIRST TO CLEAR IT',VH-22,'#cdd',5);
-  if((G.t&63)<46) ctext('<  >  CHOOSE      SPACE  PLAY',VH-12,'#39e6ff',5);
+  // Doge hops on the selected node (if unlocked & on screen)
+  const selX=Math.round(nodeAbsX(G.mapDiff)-mapCamX), selY=MAP_ROWY[G.mapZone];
+  if(selX>42){ const hop=Math.abs(Math.sin(G.t*0.14))*6; ctx.drawImage(HERO.frames[(G.t>>3&1)?'run1':'idle'],selX-(HERO.w/2|0),selY-17-hop|0); }
+  // header
+  g.fillStyle='rgba(6,6,20,.8)'; g.fillRect(0,0,VW,26);
+  ctext('WORLD MAP',3,'#ffd23e',9);
+  ctext(zoneName+'   LV '+G.mapDiff+' / '+unlockedMax(zoneName),15,'#fff',6);
+  ctx.drawImage(HERO.frames.idle,VW-40,3,10,12); otext('x'+G.lives,VW-28,6,'#fff',6);
+  // footer
+  g.fillStyle='rgba(6,6,20,.8)'; g.fillRect(0,VH-24,VW,24);
+  const best=(lbCache[boardKey(zoneName,G.mapDiff)]||[])[0]||bestTimesFor(zoneName,G.mapDiff)[0];
+  ctext(best?'BEST: '+safeName(best.name)+'  '+formatRunTime(best.time):'BE THE FIRST TO CLEAR IT',VH-21,'#cdd',5);
+  if((G.t&63)<46) ctext('UP/DN ZONE   L/R LEVEL   SPACE PLAY',VH-11,'#39e6ff',5);
 }
 
 /* ================= MAIN LOOP ================= */
@@ -2680,10 +2712,13 @@ function padEdge(name,pressed,onDown,onUp){
 function padConfirm(){
   if(G.mode==='title'||G.mode==='gameover') enterMap(true);
   else if(G.mode==='map') startMapNode();
-  else if(G.mode==='clear'&&G.stateT>90){ G.mapSel=Math.min(G.level,MAP_LEN-1); enterMap(false); }
+  else if(G.mode==='clear'&&G.stateT>90){ mapReturnAfterClear(); }
 }
 function padZone(dir){
-  if(G.mode==='map') mapMove(dir);
+  if(G.mode==='map') mapSetZone(G.mapZone+dir);
+}
+function padDiff(dir){
+  if(G.mode==='map') mapSetDiff(G.mapDiff+dir);
 }
 function pollGamepad(){
   const pads=navigator.getGamepads?navigator.getGamepads():[];
@@ -2692,11 +2727,12 @@ function pollGamepad(){
   if(!gp) return;
   const b=gp.buttons, ax=gp.axes, B=i=>!!(b[i]&&b[i].pressed);
   const axX=ax[0]||0, axY=ax[1]||0;
-  const left=B(14)||axX<-0.45, right=B(15)||axX>0.45, down=B(13)||axY>0.5;
+  const left=B(14)||axX<-0.45, right=B(15)||axX>0.45, up=B(12)||axY<-0.5, down=B(13)||axY>0.5;
   const jump=B(0), roll=B(2)||B(4), fire=B(3)||B(5), start=B(9);
-  padEdge('L',left,()=>{ ensureAudio(); padZone(-1); G.keys.L=true; },()=>{ G.keys.L=false; });
-  padEdge('R',right,()=>{ ensureAudio(); padZone(1); G.keys.R=true; },()=>{ G.keys.R=false; });
-  padEdge('Dn',down,()=>{ G.keys.Dn=true; },()=>{ G.keys.Dn=false; });
+  padEdge('L',left,()=>{ ensureAudio(); padDiff(-1); G.keys.L=true; },()=>{ G.keys.L=false; });
+  padEdge('R',right,()=>{ ensureAudio(); padDiff(1); G.keys.R=true; },()=>{ G.keys.R=false; });
+  padEdge('U',up,()=>{ ensureAudio(); padZone(-1); });
+  padEdge('Dn',down,()=>{ ensureAudio(); if(G.mode==='map') padZone(1); else G.keys.Dn=true; },()=>{ G.keys.Dn=false; });
   padEdge('J',jump,()=>{ ensureAudio();
     if(G.mode==='play'||G.mode==='cart'){ G.keys.J=true; G.keys.Jheld=true; if(G.P)G.P.jbuf=7; }
     else padConfirm();
