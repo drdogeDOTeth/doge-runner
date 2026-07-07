@@ -28,7 +28,21 @@
     width:100%; aspect-ratio:320/224; height:auto; max-height:calc(100vh - 130px);
     margin:0 auto;
     background:#000; border:4px solid #23233c; border-radius:4px;
+    touch-action:none; -webkit-tap-highlight-color:transparent;
     box-shadow:0 0 40px rgba(77,179,77,.15), 0 0 80px rgba(255,210,62,.08); }
+  #touchUI{ display:none; }
+  @media (pointer:coarse){
+    #touchUI{ display:block; position:absolute; inset:0; pointer-events:none; }
+    .tbtn{ position:absolute; pointer-events:auto; touch-action:none; user-select:none; -webkit-user-select:none;
+      -webkit-tap-highlight-color:transparent; display:flex; align-items:center; justify-content:center;
+      background:rgba(16,16,36,.55); border:2px solid rgba(140,140,190,.45); border-radius:10px;
+      color:#dde; font-size:13px; width:54px; height:54px; }
+    .tbtn:active{ background:rgba(255,210,62,.3); border-color:var(--yellow); color:var(--yellow); }
+    #tLeft{ left:10px; bottom:12px; } #tRight{ left:74px; bottom:12px; } #tDown{ left:42px; bottom:76px; }
+    #tJump{ right:10px; bottom:12px; width:64px; height:64px; font-size:9px; }
+    #tRoll{ right:84px; bottom:12px; font-size:8px; } #tFire{ right:84px; bottom:76px; font-size:8px; }
+    #tPause{ right:10px; top:28px; width:44px; height:32px; font-size:9px; }
+  }
   #crt{ position:absolute; inset:4px; pointer-events:none; border-radius:2px;
     background:repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px);
     mix-blend-mode:multiply; }
@@ -115,6 +129,15 @@
   <div id="stage">
     <canvas id="game" width="320" height="224"></canvas>
     <div id="crt"></div>
+    <div id="touchUI">
+      <div class="tbtn" id="tLeft">&#9664;</div>
+      <div class="tbtn" id="tRight">&#9654;</div>
+      <div class="tbtn" id="tDown">&#9660;</div>
+      <div class="tbtn" id="tJump">JUMP</div>
+      <div class="tbtn" id="tRoll">ROLL</div>
+      <div class="tbtn" id="tFire">FIRE</div>
+      <div class="tbtn" id="tPause">| |</div>
+    </div>
   </div>
   <aside>
     <details class="panel" open>
@@ -196,7 +219,13 @@
 const VW=320, VH=224, KILLY=360;
 let LEVELW=4000; // per-level
 const cvs=document.getElementById('game');
+/* render at 3x internally: fillText rasterizes crisp at 15-24px instead of mushy
+   5-8px, while sprites stay chunky (integer nearest-neighbor). All draw code keeps
+   using logical 320x224 coords via the base transform. */
+const RS=3;
+cvs.width=320*RS; cvs.height=224*RS;
 const ctx=cvs.getContext('2d');
+ctx.setTransform(RS,0,0,RS,0,0);
 ctx.imageSmoothingEnabled=false;
 
 const rnd=(a,b)=>a+Math.random()*(b-a);
@@ -1822,14 +1851,42 @@ function pauseAction(i){
   else if(i===2){ G.inCart=false; G.cart=null; enterMap(false); } // quit to world map
 }
 cvs.addEventListener('pointerdown',e=>{
+  ensureAudio();
   const r=cvs.getBoundingClientRect();
   const x=(e.clientX-r.left)*VW/r.width, y=(e.clientY-r.top)*VH/r.height;
   if(G.paused&&(G.mode==='play'||G.mode==='cart')){
     for(let i=0;i<3;i++) if(Math.abs(y-(104+i*18+4))<9){ G.pauseSel=i; pauseAction(i); return; }
     return;
   }
+  if(G.mode==='title'||G.mode==='gameover'){ enterMap(true); return; } // tap = ENTER
+  if(G.mode==='clear'&&G.stateT>90){ mapReturnAfterClear(); return; }
   mapPointer(x,y);
 });
+
+/* --- touch controls (buttons shown on coarse pointers via CSS) --- */
+function menuConfirm(){ // JUMP doubles as ENTER on menus; true if it was a menu press
+  if(G.paused&&(G.mode==='play'||G.mode==='cart')){ pauseAction(G.pauseSel||0); return true; }
+  if(G.mode==='title'||G.mode==='gameover'){ enterMap(true); return true; }
+  if(G.mode==='map'){ mapConfirm(); return true; }
+  if(G.mode==='clear'&&G.stateT>90){ mapReturnAfterClear(); return true; }
+  return false;
+}
+function bindTouch(id,dn,up){
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  el.addEventListener('pointerdown',e=>{ e.preventDefault(); el.setPointerCapture(e.pointerId); ensureAudio(); dn(); });
+  const end=()=>{ if(up) up(); };
+  el.addEventListener('pointerup',end);
+  el.addEventListener('pointercancel',end);
+}
+bindTouch('tLeft', ()=>G.keys.L=true, ()=>G.keys.L=false);
+bindTouch('tRight',()=>G.keys.R=true, ()=>G.keys.R=false);
+bindTouch('tDown', ()=>G.keys.Dn=true,()=>G.keys.Dn=false);
+bindTouch('tJump', ()=>{ if(menuConfirm()) return; G.keys.J=true; G.keys.Jheld=true; if(G.P)G.P.jbuf=7; },
+                   ()=>{ G.keys.Jheld=false; if(G.P&&G.P.vy<-2&&G.P.inBarrel<0) G.P.vy=-2; });
+bindTouch('tRoll', ()=>{ if(G.mode==='play'||G.mode==='cart') G.keys.rollQ=true; });
+bindTouch('tFire', ()=>G.keys.fire=true, ()=>G.keys.fire=false);
+bindTouch('tPause',()=>{ if(G.mode==='play'||G.mode==='cart'){ G.paused=!G.paused; G.pauseSel=0; } });
 
 /* ================= PLAYER PHYSICS ================= */
 const HB_W=14, HB_H=26; // hitbox (feet at P.y)
