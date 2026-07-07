@@ -29,7 +29,8 @@
       background:rgba(16,16,36,.55); border:2px solid rgba(140,140,190,.45); border-radius:10px;
       color:#dde; font-size:13px; width:54px; height:54px; }
     .tbtn:active{ background:rgba(255,210,62,.3); border-color:var(--yellow); color:var(--yellow); }
-    #tLeft{ left:10px; bottom:12px; } #tRight{ left:74px; bottom:12px; } #tDown{ left:42px; bottom:76px; }
+    #tLeft{ left:6px; bottom:60px; } #tRight{ left:110px; bottom:60px; }
+    #tUp{ left:58px; bottom:114px; } #tDown{ left:58px; bottom:6px; }
     #tJump{ right:10px; bottom:12px; width:64px; height:64px; font-size:9px; }
     #tRoll{ right:84px; bottom:12px; font-size:8px; } #tFire{ right:84px; bottom:76px; font-size:8px; }
     #tPause{ right:10px; top:28px; width:44px; height:32px; font-size:9px; }
@@ -40,6 +41,7 @@
     .tbtn{ position:fixed; width:60px; height:60px; background:rgba(20,20,42,.7); }
     #tLeft{ left:16px; bottom:88px; }
     #tRight{ left:94px; bottom:88px; }
+    #tUp{ left:55px; bottom:160px; }
     #tDown{ left:55px; bottom:16px; }
     #tJump{ right:16px; bottom:78px; width:78px; height:78px; font-size:10px; }
     #tRoll{ right:112px; bottom:30px; font-size:9px; }
@@ -50,11 +52,12 @@
      instead of covering the scene */
   @media (pointer:coarse) and (orientation:portrait){
     body{ flex-direction:column; }
-    #touchUI{ position:relative; inset:auto; height:190px; margin-top:10px; }
+    #touchUI{ position:relative; inset:auto; height:216px; margin-top:10px; }
     .tbtn{ width:64px; height:64px; background:rgba(20,20,42,.85); }
-    #tLeft{ left:12px; bottom:14px; } #tRight{ left:88px; bottom:14px; } #tDown{ left:50px; bottom:90px; }
+    #tLeft{ left:12px; bottom:76px; } #tRight{ left:148px; bottom:76px; }
+    #tUp{ left:80px; bottom:146px; } #tDown{ left:80px; bottom:6px; }
     #tJump{ right:12px; bottom:14px; width:80px; height:80px; font-size:10px; }
-    #tRoll{ right:104px; bottom:14px; font-size:9px; } #tFire{ right:104px; bottom:90px; font-size:9px; }
+    #tRoll{ right:104px; bottom:14px; font-size:9px; } #tFire{ right:104px; bottom:104px; font-size:9px; }
     #tPause{ right:16px; top:0; width:52px; height:36px; }
   }
   #crt{ position:absolute; inset:4px; pointer-events:none; border-radius:2px;
@@ -146,6 +149,7 @@
   <div id="touchUI">
     <div class="tbtn" id="tLeft">&#9664;</div>
     <div class="tbtn" id="tRight">&#9654;</div>
+    <div class="tbtn" id="tUp">&#9650;</div>
     <div class="tbtn" id="tDown">&#9660;</div>
     <div class="tbtn" id="tJump">JUMP</div>
     <div class="tbtn" id="tRoll">ROLL</div>
@@ -1786,6 +1790,12 @@ function startMapNode(){
   G.level=d; G.startIdx=((zi-(d-1))%len+len)%len; // (startIdx+d-1)%len == zi -> this zone at difficulty d
   startLevel(true);                                // keeps lives/bananas across the session
 }
+function exitToTitle(){ // back out of the world map to the main menu
+  ensureAudio(); sfx.banana();
+  G.level=1; G.startIdx=0; loadLevel(0); // canonical daytime backdrop for the title
+  G.mode='title'; G.stateT=0; G.menuSel=0;
+  updateLeaderboardUI();
+}
 function mapReturnAfterClear(){
   const zi=LEVELS.findIndex(l=>l.name===(CUR&&CUR.name)); // progress already marked in recordClearRun
   if(zi>=0){ G.mapZone=zi; G.mapDiff=Math.min(unlockedMax(LEVELS[zi].name),G.level+1); G.mapView='zone'; }
@@ -1795,6 +1805,7 @@ function mapPointer(x,y){
   if(G.mode!=='map') return;
   ensureAudio();
   if(G.mapView==='world'){
+    if(x<48&&y<32){ exitToTitle(); return; } // back chevron -> main menu
     for(let z=0;z<LEVELS.length;z++){
       const n=mapWorldNode(z), nx=n.x-mapCamX, ny=n.y;
       if(Math.abs(x-nx)<38&&Math.abs(y-ny)<28){ G.mapZone=z; G.mapDiff=clamp(G.mapDiff,1,unlockedMax(LEVELS[z].name)); mapOpenZone(); return; } // thumbnail card hit-box
@@ -1851,6 +1862,7 @@ addEventListener('keydown',e=>{
     if(G.mapView==='world'){
       if(k==='ArrowLeft'||k==='KeyA'||k==='ArrowUp'||k==='KeyW') mapSetZone(G.mapZone-1);
       else if(k==='ArrowRight'||k==='KeyD'||k==='ArrowDown'||k==='KeyS') mapSetZone(G.mapZone+1);
+      else if(k==='Escape'||k==='Backspace') exitToTitle();
     } else {
       if(k==='ArrowLeft'||k==='KeyA') mapSetDiff(G.mapDiff-1);
       else if(k==='ArrowRight'||k==='KeyD') mapSetDiff(G.mapDiff+1);
@@ -1937,9 +1949,10 @@ function bindTouch(id,dn,up){
   el.addEventListener('pointerup',end);
   el.addEventListener('pointercancel',end);
 }
-bindTouch('tLeft', ()=>G.keys.L=true, ()=>G.keys.L=false);
-bindTouch('tRight',()=>G.keys.R=true, ()=>G.keys.R=false);
-bindTouch('tDown', ()=>G.keys.Dn=true,()=>G.keys.Dn=false);
+bindTouch('tLeft', ()=>{ if(G.mode==='map'){ padDiff(-1); return; } G.keys.L=true; }, ()=>G.keys.L=false);
+bindTouch('tRight',()=>{ if(G.mode==='map'){ padDiff(1); return; } G.keys.R=true; }, ()=>G.keys.R=false);
+bindTouch('tUp',   ()=>{ if(padMenuV(-1)) return; if(G.mode==='map') mapSetZone(G.mapZone-1); });
+bindTouch('tDown', ()=>{ if(padMenuV(1)) return; if(G.mode==='map'){ mapSetZone(G.mapZone+1); return; } G.keys.Dn=true; }, ()=>G.keys.Dn=false);
 bindTouch('tJump', ()=>{ if(menuConfirm()) return; G.keys.J=true; G.keys.Jheld=true; if(G.P)G.P.jbuf=7; },
                    ()=>{ G.keys.Jheld=false; if(G.P&&G.P.vy<-2&&G.P.inBarrel<0) G.P.vy=-2; });
 bindTouch('tRoll', ()=>{ if(G.mode==='play'||G.mode==='cart') G.keys.rollQ=true; });
@@ -2990,6 +3003,7 @@ function drawMap(){
     const hop=Math.abs(Math.sin(G.t*0.13))*7;
     ctx.drawImage(HERO.frames[(G.t>>3&1)?'run1':'idle'],tx-(HERO.w/2|0),ty-43-hop|0); // perched on the card
     g.fillStyle='rgba(6,6,20,.72)'; g.fillRect(0,0,VW,28);
+    otext('<',12,7,'#ffd23e',8); otext('MENU',22,9,'#9ab',5);
     ctext('WORLD MAP',4,'#ffd23e',10);
     ctext(zoneName+'  LV '+unlockedMax(zoneName)+' OPEN',18,'#fff',6);
     ctx.drawImage(HERO.frames.idle,VW-40,4,10,12); otext('x'+Math.max(0,G.lives),VW-28,7,'#fff',6);
