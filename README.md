@@ -49,7 +49,13 @@ github.com → your packages, or add registry credentials in Coolify.)
 - The star barrel is a checkpoint. Jump into barrel cannons and fire with SPACE;
   walk onto springs to bounce.
 - Defeated critters sometimes drop goodies: a pickup bundle, a heart, a rare 1UP
-  mushroom, or an **invincibility star** (rainbow mode — nothing can touch you).
+  mushroom, an **invincibility star** (rainbow mode — nothing can touch you), or a
+  **fire flower**. Grab the flower and press **F** (gamepad **Y**) to breathe fire —
+  ranged fireballs that fell any enemy, even the spiky ones you can't stomp. There's
+  one to find early in Jungle Jaunt.
+- Each zone has its own creatures: jungle gators/critters/birds, goombas &
+  para-shells in the pipes, badnik robots in the speedway, and aliens, space mines
+  &amp; UFOs on the moon. (Upload your own model for a slot to override them all.)
 - Rumor has it one of the pipes in Pipe Panic goes somewhere... old-school rules
   apply. And something shiny sits on the highest plank in Emerald Rush.
 
