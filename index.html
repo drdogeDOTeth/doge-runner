@@ -663,7 +663,7 @@ let HERO=DEFAULT_HERO;
 
 /* ================= LEVEL DATA (3 themed zones) ================= */
 let SOLIDS=[], CANNONS=[], ENEMY_SPAWNS=[], BUNCH_SPOTS=[], LETTER_SPOTS=[], SPRINGS=[];
-let STARB={x:0,y:0}, GOALX=0, CUR=null, THEME=null;
+let STARB={x:0,y:0}, GOALX=0, CUR=null, THEME=null, TOD='day';
 function groundTopAt(x){
   let best=null;
   for(const s of SOLIDS) if(!s.plank&&x>=s.x&&x<=s.x+s.w) if(best===null||s.y<best) best=s.y;
@@ -888,7 +888,31 @@ function loadLevel(i){
   LETTER_SPOTS=CUR.letters;
   STARB=CUR.star; GOALX=CUR.goal; LEVELW=CUR.width;
   SPRINGS=CUR.springs.map(s=>({x:s.x, y:groundTopAt(s.x)??200, t:0}));
+  remixLevel();
+  TOD=diff()<=0?'day':['day','dusk','night'][Math.floor(difficultyRand(difficultySeed(21))()*3)];
   THEME.paint();
+  applyTimeOfDay();
+}
+/* per-tier remix (seeded, deterministic per zone+tier): barrel cannons drift,
+   springs shift, base enemies wander. Solids, letters, the star barrel and the
+   warp pipes NEVER move -> the secrets (star-barrel cart, 5th-pipe cellar) stay put. */
+function remixLevel(){
+  if(diff()<=0) return; // tier 1 is the canonical layout
+  const rj=difficultyRand(difficultySeed(17));
+  for(const c of CANNONS){
+    c.x+=Math.round((rj()-0.5)*64);
+    c.y=clamp(c.y+Math.round((rj()-0.5)*28),56,172);
+    c.base+=Math.round((rj()-0.5)*16);
+  }
+  for(const sp of SPRINGS){
+    const nx=sp.x+Math.round((rj()-0.5)*48), g=groundTopAt(nx);
+    if(g!==null){ sp.x=nx; sp.y=g; }
+  }
+  ENEMY_SPAWNS=CUR.enemies.map(s=>{
+    if(s.t==='bird') return {...s, y:clamp(s.y+Math.round((rj()-0.5)*24),70,170), r:Math.max(30,s.r+Math.round((rj()-0.5)*30))};
+    const nx=s.x+Math.round((rj()-0.5)*88);
+    return {...s, x:(nx>200&&Math.abs(nx-GOALX)>60&&groundTopAt(nx)!==null)?nx:s.x};
+  });
 }
 function buildBananas(){
   const list=[];
@@ -907,6 +931,40 @@ const LH=VH+64; // layers taller than viewport so camera bob never exposes the b
 const skyC=cv(VW,VH), deepC=cv(512,LH), farC=cv(512,LH), midC=cv(512,LH);
 const prng=seed=>{let s=seed>>>0;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};};
 const W1=Math.PI*2/512; // wave freqs snap to tile width -> seamless wrap
+
+/* time-of-day pass: tints the freshly painted parallax layers for dusk/night tiers */
+function applyTimeOfDay(){
+  if(TOD==='day') return;
+  for(const c of [skyC,deepC,farC,midC]){
+    const g=c.getContext('2d');
+    g.save();
+    g.globalCompositeOperation='source-atop'; // keep layer transparency
+    g.fillStyle=TOD==='night'?'rgba(14,18,64,.58)':'rgba(255,122,48,.22)';
+    g.fillRect(0,0,c.width,c.height);
+    g.restore();
+  }
+  const g=skyC.getContext('2d');
+  if(TOD==='dusk'){ // sunset gradient wash over the sky
+    const gr=g.createLinearGradient(0,0,0,VH);
+    gr.addColorStop(0,'rgba(70,40,110,.45)');
+    gr.addColorStop(0.55,'rgba(255,110,40,.30)');
+    gr.addColorStop(1,'rgba(255,190,90,.35)');
+    g.fillStyle=gr; g.fillRect(0,0,VW,VH);
+  } else { // night: stars + moon
+    const R=prng(difficultySeed(23));
+    for(let i=0;i<46;i++){
+      g.globalAlpha=0.35+R()*0.65;
+      g.fillStyle=R()<0.85?'#e8eeff':'#ffd9a0';
+      g.fillRect((R()*VW)|0,(R()*120)|0,R()<0.2?2:1,1);
+    }
+    g.globalAlpha=1;
+    g.fillStyle='#dfe6f4'; g.beginPath(); g.arc(268,38,11,0,7); g.fill();
+    g.fillStyle='#b9c4de'; // craters
+    g.beginPath(); g.arc(263,35,3,0,7); g.fill();
+    g.beginPath(); g.arc(272,42,2,0,7); g.fill();
+    g.beginPath(); g.arc(270,32,1.5,0,7); g.fill();
+  }
+}
 
 /* palm frond: drooping spine with feathered leaflets (shared by themes) */
 function fanFrond(g,bx,by,a,len,spineCol,leafCol,scale=1){
@@ -1558,7 +1616,7 @@ function enemyFromSpawn(s,rndFn){
 function extraEnemySpawns(){
   const d=diff();
   if(d<=0) return [];
-  const rndFn=difficultyRand(difficultySeed(9)), out=[], count=Math.min(14,Math.floor(d*1.35));
+  const rndFn=difficultyRand(difficultySeed(9)), out=[], count=Math.min(14,1+Math.ceil(d*1.6)); // steeper early ramp: T2=3, T3=5, T4=6...
   for(let i=0;i<count;i++){
     let x=260+rndFn()*(LEVELW-520);
     for(let tries=0;tries<10;tries++){
@@ -1567,8 +1625,8 @@ function extraEnemySpawns(){
     }
     if(groundTopAt(x)===null) continue;
     const r=rndFn();
-    if(d>=3&&r<0.24) out.push({t:'bird',x:x,y:120+rndFn()*58,r:45+rndFn()*48});
-    else out.push({t:(d>=2&&r<0.55)?'spike':'walk',x});
+    if(d>=2&&r<0.24) out.push({t:'bird',x:x,y:120+rndFn()*58,r:45+rndFn()*48}); // birds join at T3
+    else out.push({t:r<(d>=2?0.55:0.35)?'spike':'walk',x});                     // spikes from T2 on
   }
   return out;
 }
@@ -2500,6 +2558,9 @@ function drawWorld(){
       otext('1UP!',sx-12,sy-f.age*0.4,'#4db34d',6);
     }
   }
+  /* ambient light: dim the whole scene a touch on dusk/night tiers */
+  if(TOD==='night'){ ctx.fillStyle='rgba(10,14,48,.20)'; ctx.fillRect(0,0,VW,VH); }
+  else if(TOD==='dusk'){ ctx.fillStyle='rgba(120,40,90,.10)'; ctx.fillRect(0,0,VW,VH); }
 }
 function drawHUD(){
   ctx.fillStyle='rgba(5,4,13,.68)'; ctx.fillRect(0,0,VW,18);
@@ -2855,7 +2916,9 @@ function loop(ts){
 requestAnimationFrame(loop);
 window.DKC.step=(n=1)=>{for(let i=0;i<n;i++)update();};
 window.DKC.go=n=>{G.startIdx=0; G.level=n; startLevel(true);}; // debug: jump to level n
+window.DKC.goZone=(z,d)=>{const len=LEVELS.length; G.level=d; G.startIdx=((z-(d-1))%len+len)%len; startLevel(true);}; // debug: zone z at tier d (same math as mapLaunch)
 window.DKC.pollGamepad=pollGamepad; // debug hook
+window.DKC.tod=()=>TOD; // debug hook: current time-of-day variant
 loadLevel(0); // paint the title-screen background
 
 /* ============================================================
