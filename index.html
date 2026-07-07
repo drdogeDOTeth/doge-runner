@@ -34,6 +34,17 @@
     #tRoll{ right:84px; bottom:12px; font-size:8px; } #tFire{ right:84px; bottom:76px; font-size:8px; }
     #tPause{ right:10px; top:28px; width:44px; height:32px; font-size:9px; }
   }
+  /* portrait phones: dock the controls in the empty space under the game
+     instead of covering the scene (landscape keeps the overlay) */
+  @media (pointer:coarse) and (orientation:portrait){
+    body{ flex-direction:column; }
+    #touchUI{ position:relative; inset:auto; height:190px; margin-top:10px; }
+    .tbtn{ width:64px; height:64px; background:rgba(20,20,42,.85); }
+    #tLeft{ left:12px; bottom:14px; } #tRight{ left:88px; bottom:14px; } #tDown{ left:50px; bottom:90px; }
+    #tJump{ right:12px; bottom:14px; width:80px; height:80px; font-size:10px; }
+    #tRoll{ right:104px; bottom:14px; font-size:9px; } #tFire{ right:104px; bottom:90px; font-size:9px; }
+    #tPause{ right:16px; top:0; width:52px; height:36px; }
+  }
   #crt{ position:absolute; inset:4px; pointer-events:none; border-radius:2px;
     background:repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px);
     mix-blend-mode:multiply; }
