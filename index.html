@@ -1721,7 +1721,7 @@ function placedDrops(){
 const MAP_MAXDIFF=10;
 const MAP_GAP=44, MAP_X0=58, MAP_DIFF_Y=166;
 const MAP_WORLD_NODES=[
-  {x:34,y:156},{x:116,y:118},{x:198,y:124},{x:282,y:154}
+  {x:44,y:156},{x:122,y:118},{x:200,y:124},{x:276,y:154}
 ];
 const MAP_WORLD_W=340;
 let mapCamX=0;
@@ -1774,7 +1774,7 @@ function mapPointer(x,y){
   if(G.mapView==='world'){
     for(let z=0;z<LEVELS.length;z++){
       const n=mapWorldNode(z), nx=n.x-mapCamX, ny=n.y;
-      if(Math.hypot(x-nx,y-ny)<24){ G.mapZone=z; G.mapDiff=clamp(G.mapDiff,1,unlockedMax(LEVELS[z].name)); mapOpenZone(); return; }
+      if(Math.abs(x-nx)<38&&Math.abs(y-ny)<28){ G.mapZone=z; G.mapDiff=clamp(G.mapDiff,1,unlockedMax(LEVELS[z].name)); mapOpenZone(); return; } // thumbnail card hit-box
     }
   } else {
     if(x<48&&y<32){ mapBackWorld(); return; }
@@ -2936,16 +2936,26 @@ function drawWorldNodes(dim){
     z?g.lineTo(nx,ny):g.moveTo(nx,ny);
   }
   g.stroke(); g.setLineDash([]);
+  const TW=68,TH=48; // thumbnail card size
   for(let z=0;z<LEVELS.length;z++){
     const n=mapWorldNode(z), nx=Math.round(n.x-cam), ny=Math.round(n.y), sel=z===G.mapZone;
-    if(nx<-24||nx>VW+24) continue;
-    if(sel){ g.strokeStyle='#ffd23e'; g.lineWidth=2; const r=(G.mapView==='world'?15:13)+Math.sin(G.t*0.2)*1.6; g.beginPath(); g.arc(nx,ny,r,0,7); g.stroke(); }
-    if(dim&&!sel) g.globalAlpha=.48;
-    drawMapEmblem(nx,ny,LEVELS[z].theme);
+    if(nx<-40||nx>VW+40) continue;
+    if(dim) g.globalAlpha=sel?.55:.32; // recede behind the difficulty ladder
+    const t=ZONE_THUMBS[z];
+    if(t){ // level card: a mini render of the zone's opening
+      g.fillStyle='#0b0b18'; g.fillRect(nx-TW/2-2,ny-TH/2-2,TW+4,TH+4);
+      g.drawImage(t,nx-TW/2,ny-TH/2);
+      g.strokeStyle=sel?'#ffd23e':'#3a3a5a'; g.lineWidth=2;
+      g.strokeRect(nx-TW/2-1,ny-TH/2-1,TW+2,TH+2);
+      if(sel&&!dim){ const p=2+Math.sin(G.t*0.2)*1.6;
+        g.strokeStyle='rgba(255,210,62,.55)';
+        g.strokeRect(nx-TW/2-2-p,ny-TH/2-2-p,TW+4+2*p,TH+4+2*p); }
+    } else drawMapEmblem(nx,ny,LEVELS[z].theme);
     g.globalAlpha=1;
-    const label='L'+(z+1);
-    otext(label,nx-label.length*3-2,ny+13,sel?'#ffd23e':'#dde',5);
-    if(clearedMax(LEVELS[z].name)>0){ g.fillStyle='#4db34d'; g.fillRect(nx+9,ny-10,5,2); g.fillRect(nx+12,ny-13,2,5); }
+    const label=LEVELS[z].name.split(' ')[0];
+    otext(label,nx-label.length*3,ny+TH/2+5,sel?'#ffd23e':'#dde',5);
+    if(clearedMax(LEVELS[z].name)>0){ g.fillStyle='#4db34d';
+      g.fillRect(nx+TW/2-11,ny-TH/2+6,5,2); g.fillRect(nx+TW/2-8,ny-TH/2+3,2,5); }
   }
 }
 function drawMap(){
@@ -2955,7 +2965,7 @@ function drawMap(){
   if(G.mapView==='world'){
     const sn=mapWorldNode(G.mapZone), tx=Math.round(sn.x-mapCamX), ty=Math.round(sn.y);
     const hop=Math.abs(Math.sin(G.t*0.13))*7;
-    ctx.drawImage(HERO.frames[(G.t>>3&1)?'run1':'idle'],tx-(HERO.w/2|0),ty-19-hop|0);
+    ctx.drawImage(HERO.frames[(G.t>>3&1)?'run1':'idle'],tx-(HERO.w/2|0),ty-43-hop|0); // perched on the card
     g.fillStyle='rgba(6,6,20,.72)'; g.fillRect(0,0,VW,28);
     ctext('WORLD MAP',4,'#ffd23e',10);
     ctext(zoneName+'  LV '+unlockedMax(zoneName)+' OPEN',18,'#fff',6);
@@ -3011,13 +3021,18 @@ function padEdge(name,pressed,onDown,onUp){
   if(pressed&&!was){ padPrev[name]=true; if(onDown)onDown(); }
   else if(!pressed&&was){ padPrev[name]=false; if(onUp)onUp(); }
 }
-function padConfirm(){
-  if(G.mode==='title'||G.mode==='gameover') enterMap(true);
-  else if(G.mode==='map') mapConfirm();
-  else if(G.mode==='clear'&&G.stateT>90){ mapReturnAfterClear(); }
-}
+function padConfirm(){ menuConfirm(); }
 function padZone(dir){
   if(G.mode==='map') mapSetZone(G.mapZone+dir);
+}
+function padMenuV(dir){ // dpad up/down drives whichever menu is active
+  if(G.paused&&(G.mode==='play'||G.mode==='cart')){
+    const n=PAUSE_ITEMS.length; G.pauseSel=((G.pauseSel||0)+dir+n)%n; sfx.banana(); return true;
+  }
+  if(G.mode==='title'){
+    const n=TITLE_ITEMS.length; G.menuSel=((G.menuSel||0)+dir+n)%n; sfx.banana(); return true;
+  }
+  return false;
 }
 function padDiff(dir){
   if(G.mode==='map') { if(G.mapView==='world') mapSetZone(G.mapZone+dir); else mapSetDiff(G.mapDiff+dir); }
@@ -3033,10 +3048,10 @@ function pollGamepad(){
   const jump=B(0), roll=B(2)||B(4), fire=B(3)||B(5), start=B(9);
   padEdge('L',left,()=>{ ensureAudio(); padDiff(-1); G.keys.L=true; },()=>{ G.keys.L=false; });
   padEdge('R',right,()=>{ ensureAudio(); padDiff(1); G.keys.R=true; },()=>{ G.keys.R=false; });
-  padEdge('U',up,()=>{ ensureAudio(); padZone(-1); });
-  padEdge('Dn',down,()=>{ ensureAudio(); if(G.mode==='map') padZone(1); else G.keys.Dn=true; },()=>{ G.keys.Dn=false; });
+  padEdge('U',up,()=>{ ensureAudio(); if(!padMenuV(-1)) padZone(-1); });
+  padEdge('Dn',down,()=>{ ensureAudio(); if(padMenuV(1)) return; if(G.mode==='map') padZone(1); else G.keys.Dn=true; },()=>{ G.keys.Dn=false; });
   padEdge('J',jump,()=>{ ensureAudio();
-    if(G.mode==='play'||G.mode==='cart'){ G.keys.J=true; G.keys.Jheld=true; if(G.P)G.P.jbuf=7; }
+    if((G.mode==='play'||G.mode==='cart')&&!G.paused){ G.keys.J=true; G.keys.Jheld=true; if(G.P)G.P.jbuf=7; }
     else padConfirm();
   },()=>{ G.keys.Jheld=false; if(G.P&&G.P.vy<-2&&G.P.inBarrel<0) G.P.vy=-2; });
   padEdge('roll',roll,()=>{ if(G.mode==='play'||G.mode==='cart') G.keys.rollQ=true; });
@@ -3063,6 +3078,24 @@ window.DKC.go=n=>{G.startIdx=0; G.level=n; startLevel(true);}; // debug: jump to
 window.DKC.goZone=(z,d)=>{const len=LEVELS.length; G.level=d; G.startIdx=((z-(d-1))%len+len)%len; startLevel(true);}; // debug: zone z at tier d (same math as mapLaunch)
 window.DKC.pollGamepad=pollGamepad; // debug hook
 window.DKC.tod=()=>TOD; // debug hook: current time-of-day variant
+/* world-map thumbnails: capture each zone's opening (tier 1, daytime, camera at
+   the start) by drawing one frame on the real canvas and shrinking it down */
+const ZONE_THUMBS=[];
+function buildZoneThumbs(){
+  const sl=G.level, si=G.startIdx, scx=G.camX, scy=G.camY;
+  G.level=1; G.startIdx=0; // canonical layout + day lighting
+  for(let z=0;z<LEVELS.length;z++){
+    loadLevel(z);
+    G.camX=0; G.camY=20;
+    drawParallax(); drawSolids();
+    const mid=cv(272,192), t=cv(68,48); // two-step downscale for a cleaner mini
+    mid.getContext('2d').drawImage(cvs,0,0,cvs.width,cvs.height,0,0,272,192);
+    t.getContext('2d').drawImage(mid,0,0,272,192,0,0,68,48);
+    ZONE_THUMBS[z]=t;
+  }
+  G.level=sl; G.startIdx=si; G.camX=scx; G.camY=scy;
+}
+buildZoneThumbs();
 loadLevel(0); // paint the title-screen background
 
 /* ============================================================
