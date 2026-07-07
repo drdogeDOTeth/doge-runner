@@ -19,18 +19,28 @@
   header h1 span{ color:var(--green); text-shadow:0 0 12px rgba(77,179,77,.6), 3px 3px 0 #0a3d0a; }
   header p{ font-size:8px; color:#9aa; margin:8px 0 0; }
   header a{ color:var(--cyan); }
-  main{ display:flex; gap:18px; align-items:flex-start; padding:10px 12px 24px; flex-wrap:wrap; justify-content:center; }
+  main{ display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:22px; align-items:start;
+    width:min(97vw, 1780px); margin:0 auto; padding:10px 12px 24px; }
+  @media (max-width:1000px){ main{ grid-template-columns:1fr; }
+    #stage, aside{ width:min(94vw,720px); margin:0 auto; } }
   #stage{ position:relative; }
   canvas#game{ display:block; image-rendering:pixelated; image-rendering:crisp-edges;
-    width:min(92vw, 960px); aspect-ratio:320/224; height:auto;
+    width:100%; aspect-ratio:320/224; height:auto; max-height:calc(100vh - 130px);
+    margin:0 auto;
     background:#000; border:4px solid #23233c; border-radius:4px;
     box-shadow:0 0 40px rgba(77,179,77,.15), 0 0 80px rgba(255,210,62,.08); }
   #crt{ position:absolute; inset:4px; pointer-events:none; border-radius:2px;
     background:repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px);
     mix-blend-mode:multiply; }
-  aside{ width:260px; font-size:8px; line-height:1.9; }
-  aside h2{ font-size:10px; color:var(--yellow); margin:14px 0 6px; }
-  aside h2:first-child{ margin-top:2px; }
+  aside{ font-size:8px; line-height:1.9; display:grid; gap:8px; align-content:start; }
+  details.panel{ background:#0d0d1c; border:1px solid #23233c; border-radius:6px; padding:0 12px 4px; }
+  details.panel[open]{ padding-bottom:12px; }
+  details.panel summary{ list-style:none; cursor:pointer; user-select:none; font-size:10px;
+    color:var(--yellow); padding:10px 0; outline:none; }
+  details.panel summary::-webkit-details-marker{ display:none; }
+  details.panel summary::before{ content:'\25B6  '; color:var(--green); font-size:8px; }
+  details.panel[open] summary::before{ content:'\25BC  '; }
+  details.panel summary:hover{ color:var(--cyan); }
   kbd{ background:#1c1c30; border:1px solid #3a3a5a; border-bottom-width:3px; border-radius:3px;
     padding:1px 4px; font-family:inherit; font-size:8px; color:var(--cyan); }
   #dropzone{ border:2px dashed #446a44; border-radius:6px; padding:14px 10px; text-align:center;
@@ -47,6 +57,7 @@
   #leaderboard{ display:grid; gap:3px; margin-top:6px; color:#cdd; }
   #leaderboard{ cursor:pointer; }
   .lbRow{ display:grid; grid-template-columns:16px 1fr auto; gap:6px; align-items:center; }
+  .lbRow span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .lbRow.me{ color:var(--yellow); }
   .lbMeta{ color:#778; margin-top:6px; }
   .lbHint{ color:var(--cyan); font-size:7px; margin-top:5px; cursor:pointer; user-select:none; }
@@ -106,46 +117,54 @@
     <div id="crt"></div>
   </div>
   <aside>
-    <h2>&#9654; CONTROLS</h2>
-    <div><kbd>A</kbd> <kbd>D</kbd> run (arrows work too)</div>
-    <div><kbd>SPACE</kbd> jump &mdash; press again in mid-air to <b>double jump</b>!</div>
-    <div><kbd>SHIFT</kbd>/<kbd>X</kbd> roll &nbsp; <kbd>F</kbd> fire breath (when lit!) &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</div>
-    <div style="color:#889">tip: roll off a ledge, then double jump!</div>
-    <div style="color:var(--green)">&#127918; GAMEPAD: D-pad/stick move &middot; A jump &middot; X roll &middot; Y fire &middot; Start pause</div>
-    <h2>&#9654; PLAYER</h2>
-    <input class="playerInput" id="playerName" maxlength="10" value="PLAYER 1" aria-label="Player name">
-    <div id="leaderboard" title="Click to see the full leaderboard"></div>
-    <div class="lbMeta" id="leaderboardMeta"></div>
-    <div class="lbHint" id="lbExpand">&#9650; VIEW FULL BOARD</div>
-    <div id="notifyPanel" style="display:none">
-      <div class="notifyHead">&#128276; NOTIFICATIONS <span id="notifyClear">clear</span></div>
-      <div id="notifyList"></div>
-    </div>
-    <h2>&#9654; CUSTOM MODELS</h2>
-    <div style="color:#889">Pick a slot, then drop a model &mdash; hero or critter!</div>
-    <div id="slotRow">
-      <button class="retro slotBtn on" data-slot="hero">HERO</button>
-      <button class="retro slotBtn" data-slot="walker">WALKER</button>
-      <button class="retro slotBtn" data-slot="spiky">SPIKY</button>
-      <button class="retro slotBtn" data-slot="bird">FLYER</button>
-    </div>
-    <div id="dropzone">DROP A <b>.VRM</b> / <b>.GLB</b><br>FOR: <b>HERO</b><br><span style="font-size:7px">(or click to browse)</span></div>
-    <input type="file" id="filePick" accept=".vrm,.glb,.gltf" style="display:none">
-    <div style="display:flex; gap:4px; margin-top:4px;">
-      <input class="playerInput" id="urlLoad" placeholder="...OR PASTE A MODEL URL" spellcheck="false"
-             style="margin-top:0; flex:1; min-width:0; text-transform:none;" aria-label="Model URL">
-      <button class="retro" id="urlGo" style="margin-top:0;">LOAD</button>
-    </div>
-    <div id="avStatus"></div>
-    <div id="spriteStrip"></div>
-    <button class="retro" id="resetAvatar" style="display:none">RESET SLOT TO DEFAULT</button>
-    <h2>&#9654; HOW TO PLAY</h2>
-    <div>Three retro zones: <b>Jungle Jaunt</b> (barrel cannons!), <b>Pipe Panic</b>
-    (bricks &amp; pipes), and <b>Emerald Rush</b> (bounce the springs!). Reach the
-    <span style="color:var(--yellow)">GOAL</span>! Stomp or roll through critters &mdash;
-    never touch the spiky ones. Collect 100 pickups for an extra life and grab all four
-    <span style="color:var(--yellow)">D&middot;O&middot;G&middot;E</span> letters.
-    The star barrel is a checkpoint.</div>
+    <details class="panel" open>
+      <summary>PLAYER</summary>
+      <input class="playerInput" id="playerName" maxlength="20" value="PLAYER 1" aria-label="Player name">
+      <div id="leaderboard" title="Click to see the full leaderboard"></div>
+      <div class="lbMeta" id="leaderboardMeta"></div>
+      <div class="lbHint" id="lbExpand">&#9650; VIEW FULL BOARD</div>
+      <div id="notifyPanel" style="display:none">
+        <div class="notifyHead">&#128276; NOTIFICATIONS <span id="notifyClear">clear</span></div>
+        <div id="notifyList"></div>
+      </div>
+    </details>
+    <details class="panel" open>
+      <summary>CONTROLS</summary>
+      <div><kbd>A</kbd> <kbd>D</kbd> run (arrows work too)</div>
+      <div><kbd>SPACE</kbd> jump &mdash; press again in mid-air to <b>double jump</b>!</div>
+      <div><kbd>SHIFT</kbd>/<kbd>X</kbd> roll &nbsp; <kbd>F</kbd> fire breath (when lit!) &nbsp; <kbd>P</kbd>/<kbd>ESC</kbd> pause &nbsp; <kbd>M</kbd> mute</div>
+      <div style="color:#889">tip: roll off a ledge, then double jump!</div>
+      <div style="color:var(--green)">&#127918; GAMEPAD: D-pad/stick move &middot; A jump &middot; X roll &middot; Y fire &middot; Start pause</div>
+    </details>
+    <details class="panel" open>
+      <summary>CUSTOM MODELS</summary>
+      <div style="color:#889">Pick a slot, then drop a model &mdash; hero or critter!</div>
+      <div id="slotRow">
+        <button class="retro slotBtn on" data-slot="hero">HERO</button>
+        <button class="retro slotBtn" data-slot="walker">WALKER</button>
+        <button class="retro slotBtn" data-slot="spiky">SPIKY</button>
+        <button class="retro slotBtn" data-slot="bird">FLYER</button>
+      </div>
+      <div id="dropzone">DROP A <b>.VRM</b> / <b>.GLB</b><br>FOR: <b>HERO</b><br><span style="font-size:7px">(or click to browse)</span></div>
+      <input type="file" id="filePick" accept=".vrm,.glb,.gltf" style="display:none">
+      <div style="display:flex; gap:4px; margin-top:4px;">
+        <input class="playerInput" id="urlLoad" placeholder="...OR PASTE A MODEL URL" spellcheck="false"
+               style="margin-top:0; flex:1; min-width:0; text-transform:none;" aria-label="Model URL">
+        <button class="retro" id="urlGo" style="margin-top:0;">LOAD</button>
+      </div>
+      <div id="avStatus"></div>
+      <div id="spriteStrip"></div>
+      <button class="retro" id="resetAvatar" style="display:none">RESET SLOT TO DEFAULT</button>
+    </details>
+    <details class="panel">
+      <summary>HOW TO PLAY</summary>
+      <div>Three retro zones: <b>Jungle Jaunt</b> (barrel cannons!), <b>Pipe Panic</b>
+      (bricks &amp; pipes), and <b>Emerald Rush</b> (bounce the springs!). Reach the
+      <span style="color:var(--yellow)">GOAL</span>! Stomp or roll through critters &mdash;
+      never touch the spiky ones. Collect 100 pickups for an extra life and grab all four
+      <span style="color:var(--yellow)">D&middot;O&middot;G&middot;E</span> letters.
+      The star barrel is a checkpoint.</div>
+    </details>
   </aside>
 </main>
 <div id="dragOverlay">DROP TO PIXELIZE!</div>
@@ -1401,8 +1420,8 @@ const DKC_LB_KEY='dkc_runner_best_times';
 const playerNameEl=document.getElementById('playerName');
 const leaderboardEl=document.getElementById('leaderboard');
 const leaderboardMetaEl=document.getElementById('leaderboardMeta');
-function cleanName(v){
-  return (v||'PLAYER 1').toUpperCase().replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim().slice(0,10)||'PLAYER 1';
+function cleanName(v){ // letters, digits, space and light punctuation; must match worker/leaderboard.js
+  return (v||'PLAYER 1').toUpperCase().replace(/[^A-Z0-9 .,\-_'!]/g,'').replace(/\s+/g,' ').trim().slice(0,20)||'PLAYER 1';
 }
 function getPlayerName(){ return cleanName(playerNameEl&&playerNameEl.value); }
 function loadRuns(){
@@ -1461,7 +1480,7 @@ function submitGlobal(entry){
     .catch(()=>{});
 }
 window.DKC.setLbApi=u=>{ LB_API=u; for(const k in lbAt) delete lbAt[k]; updateLeaderboardUI(); }; // debug/config hook
-const safeName=v=>String(v||'').replace(/[^A-Za-z0-9 ]/g,'').slice(0,10);
+const safeName=v=>String(v||'').replace(/[^A-Za-z0-9 .,\-_'!]/g,'').slice(0,20);
 function renderBoard(rows,meta,empty){
   leaderboardEl.innerHTML=rows.length?rows.map((r,i)=>'<div class="lbRow '+(r.name===getPlayerName()?'me':'')+'"><span>#'+(i+1)+'</span><span>'+safeName(r.name)+'</span><span>'+formatRunTime(r.time)+'</span></div>').join(''):'<div class="lbMeta">'+empty+'</div>';
   if(leaderboardMetaEl) leaderboardMetaEl.textContent=meta;
@@ -1762,6 +1781,15 @@ addEventListener('keydown',e=>{
       else if(k==='Escape'||k==='Backspace') mapBackWorld();
     }
   }
+  if(G.paused&&(G.mode==='play'||G.mode==='cart')){ // pause menu owns the keys
+    if(e.repeat) return;
+    if(k==='ArrowUp'||k==='KeyW'){ G.pauseSel=((G.pauseSel||0)+2)%3; sfx.banana(); }
+    else if(k==='ArrowDown'||k==='KeyS'){ G.pauseSel=((G.pauseSel||0)+1)%3; sfx.banana(); }
+    else if(k==='Enter'||k==='Space'){ pauseAction(G.pauseSel||0); }
+    else if(k==='KeyP'||k==='Escape'){ G.paused=false; }
+    else if(k==='KeyM') muted=!muted;
+    return;
+  }
   if(k==='ArrowLeft'||k==='KeyA')G.keys.L=true;
   if(k==='ArrowRight'||k==='KeyD')G.keys.R=true;
   if(k==='ArrowDown'||k==='KeyS')G.keys.Dn=true;
@@ -1769,7 +1797,7 @@ addEventListener('keydown',e=>{
   if((k==='ShiftLeft'||k==='ShiftRight'||k==='KeyX'||k==='KeyK')&&!e.repeat) G.keys.rollQ=true;
   if(k==='KeyF') G.keys.fire=true;
   if(k==='KeyM') muted=!muted;
-  if(k==='KeyP'&&(G.mode==='play'||G.mode==='cart')) G.paused=!G.paused;
+  if((k==='KeyP'||k==='Escape')&&(G.mode==='play'||G.mode==='cart')){ G.paused=true; G.pauseSel=0; }
   if(k==='Enter'||k==='Space'){
     if(G.mode==='title'||G.mode==='gameover') enterMap(true);
     else if(G.mode==='map') mapConfirm();
@@ -1788,9 +1816,19 @@ addEventListener('keyup',e=>{
   if(k==='KeyF') G.keys.fire=false;
 });
 addEventListener('blur',()=>{ if(G.mode==='play'||G.mode==='cart') G.paused=true; });
+function pauseAction(i){
+  G.paused=false;
+  if(i===1){ G.inCart=false; G.cart=null; startLevel(true); }     // restart current level (same zone+tier)
+  else if(i===2){ G.inCart=false; G.cart=null; enterMap(false); } // quit to world map
+}
 cvs.addEventListener('pointerdown',e=>{
   const r=cvs.getBoundingClientRect();
-  mapPointer((e.clientX-r.left)*VW/r.width,(e.clientY-r.top)*VH/r.height);
+  const x=(e.clientX-r.left)*VW/r.width, y=(e.clientY-r.top)*VH/r.height;
+  if(G.paused&&(G.mode==='play'||G.mode==='cart')){
+    for(let i=0;i<3;i++) if(Math.abs(y-(104+i*18+4))<9){ G.pauseSel=i; pauseAction(i); return; }
+    return;
+  }
+  mapPointer(x,y);
 });
 
 /* ================= PLAYER PHYSICS ================= */
@@ -2752,8 +2790,13 @@ function draw(){
     if((G.stateT&31)<22) ctext('PRESS ENTER',122,'#fff',6);
   }
   if(G.paused&&(G.mode==='play'||G.mode==='cart')){
-    ctx.fillStyle='rgba(10,8,20,.6)'; ctx.fillRect(0,98,VW,28);
-    ctext('PAUSE',106,'#ffd23e');
+    ctx.fillStyle='rgba(10,8,20,.78)'; ctx.fillRect(0,0,VW,VH);
+    ctext('PAUSE',62,'#ffd23e',14);
+    ['RESUME','RESTART LEVEL','QUIT TO MAP'].forEach((s,i)=>{
+      const on=i===(G.pauseSel||0);
+      ctext(on?'> '+s+' <':s,104+i*18,on?'#ffd23e':'#9ab',7);
+    });
+    ctext('ARROWS SELECT - ENTER CONFIRM - P RESUME',176,'#667',5);
   }
 }
 function drawTitle(){

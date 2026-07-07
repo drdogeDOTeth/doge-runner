@@ -76,7 +76,7 @@
     <div><kbd>&larr;</kbd> <kbd>&rarr;</kbd> run &nbsp; <kbd>&uarr;</kbd> <kbd>&darr;</kbd> climb</div>
     <div><kbd>SPACE</kbd> jump &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</div>
     <h2>&#9654; PLAYER</h2>
-    <input class="playerInput" id="playerName" maxlength="10" value="PLAYER 1" aria-label="Player name">
+    <input class="playerInput" id="playerName" maxlength="20" value="PLAYER 1" aria-label="Player name">
     <div id="leaderboard"></div>
     <div class="lbMeta" id="leaderboardMeta"></div>
     <h2>&#9654; CUSTOM MODELS</h2>
@@ -392,8 +392,8 @@ const ARCADE_LB_KEY='dkremix_arcade_scores';
 const playerNameEl=document.getElementById('playerName');
 const leaderboardEl=document.getElementById('leaderboard');
 const leaderboardMetaEl=document.getElementById('leaderboardMeta');
-function cleanName(v){
-  return (v||'PLAYER 1').toUpperCase().replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim().slice(0,10)||'PLAYER 1';
+function cleanName(v){ // letters, digits, space and light punctuation; must match worker/leaderboard.js
+  return (v||'PLAYER 1').toUpperCase().replace(/[^A-Z0-9 .,\-_'!]/g,'').replace(/\s+/g,' ').trim().slice(0,20)||'PLAYER 1';
 }
 function getPlayerName(){ return cleanName(playerNameEl&&playerNameEl.value); }
 function formatRunTime(frames){
@@ -438,7 +438,7 @@ function submitGlobal(entry){
     .catch(()=>{});
 }
 window.DK.setLbApi=u=>{ LB_API=u; lbGlobalAt=0; updateLeaderboardUI(); }; // debug/config hook
-const safeName=v=>String(v||'').replace(/[^A-Za-z0-9 ]/g,'').slice(0,10);
+const safeName=v=>String(v||'').replace(/[^A-Za-z0-9 .,\-_'!]/g,'').slice(0,20);
 function updateLeaderboardUI(){
   if(!leaderboardEl) return;
   const rows=(lbGlobal||topScores()).slice(0,5);

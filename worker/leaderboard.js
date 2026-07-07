@@ -27,7 +27,7 @@ const CORS={
   'Access-Control-Allow-Headers':'content-type,authorization',
 };
 const json=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{'content-type':'application/json',...CORS}});
-const cleanName=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim().slice(0,10)||'PLAYER 1';
+const cleanName=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9 .,\-_'!]/g,'').replace(/\s+/g,' ').trim().slice(0,20)||'PLAYER 1'; // keep in sync with cleanName in index.html/arcade.html
 const int=(v,min,max)=>{ const n=Math.floor(Number(v)); return Number.isFinite(n)&&n>=min&&n<=max?n:null; };
 const clampLimit=v=>{ const n=int(v,1,100); return n||10; };
 
