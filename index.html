@@ -316,6 +316,20 @@ function musicTick(){
   if(musStep%2) noiseHit(0.03,0.02,0,4000);
   musStep++;
 }
+/* menu / title-screen loop: Am - F - C - G with a bright lead */
+const MENU_LEAD=[659,0,784,0, 880,0,784,0, 659,0,587,0, 523,0,587,0,
+                 659,0,523,0, 587,0,659,0, 784,0,880,0, 784,0,0,0];
+const MENU_BASS=[110,0,0,0, 110,0,0,0, 87,0,0,0, 87,0,0,0,
+                 131,0,0,0, 131,0,0,0, 98,0,0,0, 98,0,0,0];
+let menuStep=0;
+function menuMusicTick(){
+  const L=MENU_LEAD[menuStep%MENU_LEAD.length];
+  if(L) tone(L,L,0.17,'square',0.05);
+  const B=MENU_BASS[menuStep%MENU_BASS.length];
+  if(B) tone(B,B,0.24,'triangle',0.07);
+  if(menuStep%2===0) noiseHit(0.02,0.012,0,6000); // soft hat
+  menuStep++;
+}
 
 /* ================= DEFAULT HERO (rect pixel art, 24x30) ================= */
 function buildHeroFrames(){
@@ -2394,8 +2408,8 @@ function updateCart(){
 function update(){
   G.t++;
   if(G.flashT>0)G.flashT--;
-  if(G.mode==='map'){ G.stateT++; mapCamX=lerp(mapCamX,mapCamTarget(),0.15); return; }
-  if(G.mode==='title'||G.mode==='gameover'){ G.stateT++; return; }
+  if(G.mode==='map'){ G.stateT++; mapCamX=lerp(mapCamX,mapCamTarget(),0.15); if(G.t%8===0) menuMusicTick(); return; }
+  if(G.mode==='title'||G.mode==='gameover'){ G.stateT++; if(G.mode==='title'&&G.t%8===0) menuMusicTick(); return; }
   if(G.mode==='intro'){ G.stateT++; if(G.stateT>110)G.mode='play'; updateCamera(); return; }
   if(G.mode==='clear'){
     G.stateT++;
@@ -2468,6 +2482,15 @@ function logoText(s,y,size,c1,c2,outline){
   ctx.save();                                                       // top sheen
   ctx.beginPath(); ctx.rect(x-3,y-1,w+6,Math.max(2,size*0.34)); ctx.clip();
   ctx.fillStyle='rgba(255,255,255,.28)'; ctx.fillText(s,x,y);
+  ctx.restore();
+  // animated shimmer streak sweeping across the whole logo
+  const sweep=(G.t%210)/210, bandCX=-34+sweep*(VW+68), bw=13;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(bandCX+7,y-4); ctx.lineTo(bandCX+7+bw,y-4);
+  ctx.lineTo(bandCX-7+bw,y+size+5); ctx.lineTo(bandCX-7,y+size+5); ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle='rgba(255,255,255,.62)'; ctx.fillText(s,x,y);
   ctx.restore();
 }
 function drawParallax(){
