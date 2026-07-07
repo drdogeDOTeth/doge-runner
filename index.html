@@ -1410,6 +1410,14 @@ function loadRuns(){
   catch(e){ return []; }
 }
 function saveRuns(rows){ localStorage.setItem(DKC_LB_KEY,JSON.stringify(rows.slice(0,80))); }
+/* one-time board reset (2026-07-07): tier 2+ levels were remixed (seeded layouts,
+   steeper ramp), so old tier>=2 times aren't comparable. Drop them once; tier 1 kept. */
+try{
+  if(localStorage.getItem('dkc_lb_reset')!=='2026-07-07'){
+    saveRuns(loadRuns().filter(r=>(r.tier||1)<=1));
+    localStorage.setItem('dkc_lb_reset','2026-07-07');
+  }
+}catch(e){}
 function formatRunTime(frames){
   const total=Math.floor(frames/60), m=Math.floor(total/60), s=total%60;
   return m?m+':'+('0'+s).slice(-2):s+'s';

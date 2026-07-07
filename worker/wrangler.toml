@@ -2,9 +2,9 @@ name = "dk-leaderboard"
 main = "leaderboard.js"
 compatibility_date = "2026-07-04"
 
-# For `npx wrangler deploy`: replace id with your KV namespace id
-# (npx wrangler kv namespace create SCORES). Dashboard deploys can
-# ignore this file entirely — just bind a KV namespace as SCORES.
+# KV namespace "dk_scores" (live). Dashboard deploys can ignore this file —
+# just bind a KV namespace as SCORES. CLI ops need --remote, e.g.:
+#   npx wrangler kv key list --namespace-id 84b3ffa328da45caa0eed1663fdb3e4a --remote
 [[kv_namespaces]]
 binding = "SCORES"
-id = "00000000000000000000000000000000"
+id = "84b3ffa328da45caa0eed1663fdb3e4a"
