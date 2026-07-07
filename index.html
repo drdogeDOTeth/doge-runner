@@ -3124,7 +3124,7 @@ function pollGamepad(){
   const b=gp.buttons, ax=gp.axes, B=i=>!!(b[i]&&b[i].pressed);
   const axX=ax[0]||0, axY=ax[1]||0;
   const left=B(14)||axX<-0.45, right=B(15)||axX>0.45, up=B(12)||axY<-0.5, down=B(13)||axY>0.5;
-  const jump=B(0), roll=B(2)||B(4), fire=B(3)||B(5), start=B(9);
+  const jump=B(0), roll=B(2)||B(4), fire=B(3)||B(5), start=B(9), back=B(1)||B(8);
   padEdge('L',left,()=>{ ensureAudio(); padDiff(-1); G.keys.L=true; },()=>{ G.keys.L=false; });
   padEdge('R',right,()=>{ ensureAudio(); padDiff(1); G.keys.R=true; },()=>{ G.keys.R=false; });
   padEdge('U',up,()=>{ ensureAudio(); if(!padMenuV(-1)) padZone(-1); });
@@ -3137,6 +3137,10 @@ function pollGamepad(){
   padEdge('fire',fire,()=>{ G.keys.fire=true; },()=>{ G.keys.fire=false; });
   padEdge('start',start,()=>{ ensureAudio();
     if(G.mode==='play'||G.mode==='cart') G.paused=!G.paused; else padConfirm();
+  });
+  padEdge('back',back,()=>{ ensureAudio();  // B / Select = cancel / back one menu level
+    if(G.mode==='map'){ if(G.mapView==='zone') mapBackWorld(); else exitToTitle(); }
+    else if(G.paused&&(G.mode==='play'||G.mode==='cart')) G.paused=false;
   });
 }
 
