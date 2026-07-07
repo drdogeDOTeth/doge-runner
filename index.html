@@ -896,7 +896,10 @@ function buildBananas(){
   const arc=(cx,cy,pts)=>{ pts.forEach(([dx,dy])=>list.push({x:cx+dx,y:cy+dy})); };
   const at=(...pts)=>{ pts.forEach(([x,y])=>list.push({x,y})); };
   CUR.bananas(line,arc,at);
-  return list;
+  const d=diff();
+  if(d<=0) return list;
+  const keep=clamp(0.94-d*0.055,0.45,0.94), rnd=difficultyRand(difficultySeed(5));
+  return list.filter(b=>b.x<220||Math.abs(b.x-STARB.x)<70||rnd()<keep);
 }
 
 /* ================= PARALLAX LAYERS (prerendered, seeded, tileable) ================= */
@@ -1328,7 +1331,12 @@ const G={
   paused:false, runSubmitted:false,
 };
 window.DKC=G;
-const sf=()=>1+(G.level-1)*0.15; // enemy speed factor per loop
+const tier=()=>Math.max(1,G.level||1);
+const diff=()=>tier()-1;
+const sf=()=>1+diff()*0.18; // enemy speed factor per difficulty tier
+const fireMax=()=>Math.max(240,600-diff()*35);
+function difficultyRand(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+function difficultySeed(salt){ return ((G.startIdx+1)*73856093 ^ tier()*19349663 ^ salt*83492791)>>>0; }
 
 const PLAYER_KEY='dkremix_player_name';
 const DKC_LB_KEY='dkc_runner_best_times';
@@ -1540,21 +1548,40 @@ function resetPlayer(atCp){
   G.P={x, y:groundTopAt(x)??192, vx:0, vy:0, dir:1, onGround:true,
     rollT:0, rollCd:0, invT:0, coyote:0, jbuf:0, walkT:0, airJumps:0,
     inBarrel:-1, barrelCd:0, launched:false, starT:0, fireT:0, fireCd:0};
-  G.hearts=2;
+  G.hearts=diff()>=4?1:2;
+}
+function enemyFromSpawn(s,rndFn){
+  if(s.t==='bird') return {t:'bird',cx:s.x,cy:s.y,r:s.r,x:s.x,y:s.y,ph:rndFn()*6,dead:false,vy:0,anim:0};
+  const gy=groundTopAt(s.x);
+  return {t:s.t,x:s.x,y:gy,dir:rndFn()<0.5?-1:1,dead:false,vy:0,anim:0};
+}
+function extraEnemySpawns(){
+  const d=diff();
+  if(d<=0) return [];
+  const rndFn=difficultyRand(difficultySeed(9)), out=[], count=Math.min(14,Math.floor(d*1.35));
+  for(let i=0;i<count;i++){
+    let x=260+rndFn()*(LEVELW-520);
+    for(let tries=0;tries<10;tries++){
+      if(Math.abs(x-STARB.x)>90&&Math.abs(x-GOALX)>150&&groundTopAt(x)!==null) break;
+      x=260+rndFn()*(LEVELW-520);
+    }
+    if(groundTopAt(x)===null) continue;
+    const r=rndFn();
+    if(d>=3&&r<0.24) out.push({t:'bird',x:x,y:120+rndFn()*58,r:45+rndFn()*48});
+    else out.push({t:(d>=2&&r<0.55)?'spike':'walk',x});
+  }
+  return out;
 }
 function spawnEnemies(){
-  G.enemies=ENEMY_SPAWNS.map(s=>{
-    if(s.t==='bird') return {t:'bird',cx:s.x,cy:s.y,r:s.r,x:s.x,y:s.y,ph:rnd(0,6),dead:false,vy:0,anim:0};
-    const gy=groundTopAt(s.x);
-    return {t:s.t,x:s.x,y:gy,dir:Math.random()<0.5?-1:1,dead:false,vy:0,anim:0};
-  });
+  const rndFn=difficultyRand(difficultySeed(13));
+  G.enemies=ENEMY_SPAWNS.concat(extraEnemySpawns()).map(s=>enemyFromSpawn(s,rndFn));
 }
 function startLevel(freshLetters){
   loadLevel((G.startIdx+G.level-1)%LEVELS.length);
   resetPlayer(false); G.cp=false; G.starHit=false;
   spawnEnemies();
   G.bananasLeft=buildBananas();
-  G.bunches=BUNCH_SPOTS.map(b=>({...b,taken:false}));
+  G.bunches=BUNCH_SPOTS.filter((b,i)=>diff()<2||((i+G.level+G.startIdx)%Math.min(4,2+Math.floor(diff()/2)))!==0).map(b=>({...b,taken:false}));
   G.lettersLeft=LETTER_SPOTS.map(l=>({...l,taken:false}));
   if(freshLetters) G.letters=new Set();
   G.time=0; G.camX=0; G.camY=20; G.runSubmitted=false;
@@ -1739,12 +1766,13 @@ function updatePlayer(){
   /* --- in a barrel cannon --- */
   if(P.inBarrel>=0){
     const c=CANNONS[P.inBarrel];
-    c.ang=c.base+Math.sin(G.t*0.045)*c.osc;
+    c.ang=c.base+Math.sin(G.t*(0.045+diff()*0.004))*c.osc;
     P.x=c.x; P.y=c.y+10;
     if(P.jbuf>0){
       P.jbuf=0;
       const a=c.ang*Math.PI/180;
-      P.vx=Math.cos(a)*c.power; P.vy=-Math.sin(a)*c.power;
+      const pow=c.power*(1+Math.min(6,diff())*0.025);
+      P.vx=Math.cos(a)*pow; P.vy=-Math.sin(a)*pow;
       P.inBarrel=-1; P.barrelCd=18; P.launched=true; P.onGround=false;
       sfx.blast();
       G.fx.push({t:'boom',x:c.x,y:c.y,age:0});
@@ -1939,13 +1967,13 @@ function updateEnemies(){
 
 /* ================= ENEMY DROPS / POWERUPS ================= */
 function spawnDrop(x,y){
-  const r=Math.random();
+  const r=Math.random(), d=diff(), scale=clamp(1-d*0.07,0.35,1);
   let t=null;
-  if(r<0.03) t='oneup';
-  else if(r<0.10) t='star';
-  else if(r<0.18) t='fire';
-  else if(r<0.30) t='heart';
-  else if(r<0.50) t='bunch5';
+  if(r<0.03*scale) t='oneup';
+  else if(r<0.10*scale) t='star';
+  else if(r<0.18*scale) t='fire';
+  else if(d<4&&r<0.30*scale) t='heart';
+  else if(r<0.50*scale) t='bunch5';
   if(!t) return;
   G.drops.push({t,x,y:y-4,vy:-2.8,vx:(Math.random()-0.5)*1.4,onG:false,age:0});
 }
@@ -1965,8 +1993,8 @@ function updateDrops(){
     if(Math.abs(P.x-d.x)<13&&Math.abs((P.y-HB_H/2)-(d.y-8))<20){
       G.drops.splice(i,1);
       if(d.t==='heart'){ G.hearts=Math.min(2,G.hearts+1); sfx.check(); }
-      else if(d.t==='star'){ P.starT=420; sfx.letter(); }
-      else if(d.t==='fire'){ P.fireT=600; sfx.firePower(); }
+      else if(d.t==='star'){ P.starT=Math.max(180,420-diff()*22); sfx.letter(); }
+      else if(d.t==='fire'){ P.fireT=fireMax(); sfx.firePower(); }
       else if(d.t==='oneup'){ G.lives++; sfx.oneup(); G.fx.push({t:'oneup',x:d.x,y:d.y-16,age:0}); }
       else if(d.t==='bunch5'){ G.bananas+=5; sfx.bunch(); }
       G.fx.push({t:'spark',x:d.x,y:d.y-8,age:0});
@@ -1978,7 +2006,7 @@ function updateDrops(){
 function breatheFire(){
   const P=G.P;
   if(!P||G.mode!=='play'||P.inBarrel>=0) return;
-  P.fireCd=13;
+  P.fireCd=13+Math.min(8,diff());
   G.shots.push({x:P.x+P.dir*10,y:P.y-15,vx:P.dir*3.7,vy:-0.6,age:0});
   G.fx.push({t:'puff',x:P.x+P.dir*12,y:P.y-15,age:0});
   sfx.fireShot();
@@ -2480,7 +2508,7 @@ function drawHUD(){
   for(let i=0;i<G.hearts;i++) ctx.drawImage(SPR.heart.img,64+i*13,4);
   if(G.P&&G.P.fireT>0&&(G.P.fireT>90||(G.t&4))){ // fire powerup timer icon
     ctx.drawImage(SPR.fireFlower.img,90,3,10,11);
-    ctx.fillStyle='#ff8a00'; ctx.fillRect(90,15,Math.round(10*G.P.fireT/600),1);
+    ctx.fillStyle='#ff8a00'; ctx.fillRect(90,15,Math.round(10*G.P.fireT/fireMax()),1);
   }
   ctx.drawImage(HERO.frames.idle,108,3,10,12);
   otext('x'+G.lives,120,6,'#fff',6);
