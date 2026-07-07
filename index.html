@@ -34,8 +34,20 @@
     #tRoll{ right:84px; bottom:12px; font-size:8px; } #tFire{ right:84px; bottom:76px; font-size:8px; }
     #tPause{ right:10px; top:28px; width:44px; height:32px; font-size:9px; }
   }
+  /* landscape phones: the canvas is height-bound, so park the clusters in the
+     side gutters (fixed to the viewport edges, thumb-height) */
+  @media (pointer:coarse) and (orientation:landscape){
+    .tbtn{ position:fixed; width:60px; height:60px; background:rgba(20,20,42,.7); }
+    #tLeft{ left:16px; bottom:88px; }
+    #tRight{ left:94px; bottom:88px; }
+    #tDown{ left:55px; bottom:16px; }
+    #tJump{ right:16px; bottom:78px; width:78px; height:78px; font-size:10px; }
+    #tRoll{ right:112px; bottom:30px; font-size:9px; }
+    #tFire{ right:112px; bottom:120px; font-size:9px; }
+    #tPause{ right:16px; top:12px; width:50px; height:34px; }
+  }
   /* portrait phones: dock the controls in the empty space under the game
-     instead of covering the scene (landscape keeps the overlay) */
+     instead of covering the scene */
   @media (pointer:coarse) and (orientation:portrait){
     body{ flex-direction:column; }
     #touchUI{ position:relative; inset:auto; height:190px; margin-top:10px; }
