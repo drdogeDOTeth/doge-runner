@@ -428,6 +428,18 @@ function buildRing(){
   };
   return {frames:[f(0),f(1)],w:12,h:12};
 }
+function buildOrb(){ // pulsing alien energy orb (moon zone pickup)
+  const f=(alt)=>{
+    const c=cv(12,12), g=c.getContext('2d');
+    g.fillStyle='#1a5a2e'; g.beginPath(); g.arc(6,6,alt?5:4.4,0,7); g.fill();
+    g.fillStyle='#39e07a'; g.beginPath(); g.arc(6,6,alt?3.8:3.2,0,7); g.fill();
+    g.fillStyle='#a0ffc8'; g.beginPath(); g.arc(5,5,1.6,0,7); g.fill();
+    g.fillStyle=alt?'#e8fff2':'#a0ffc8';
+    g.fillRect(5,0,2,1); g.fillRect(5,11,2,1); g.fillRect(0,5,1,2); g.fillRect(11,5,1,2);
+    return c;
+  };
+  return {frames:[f(0),f(1)],w:12,h:12};
+}
 function buildCart(){ // DKC-style wooden minecart
   function f(alt){
     const c=cv(28,16), g=c.getContext('2d');
@@ -475,7 +487,7 @@ function buildShroom(){ // 1UP mushroom drop
 }
 const SPR={ walker:buildWalker(), spiky:buildSpiky(), bird:buildBird(),
   cannon:buildCannon(), star:buildStarBarrel(), banana:buildBanana(),
-  coin:buildCoin(), ring:buildRing(),
+  coin:buildCoin(), ring:buildRing(), orb:buildOrb(),
   bunch:buildBunch(), goal:buildGoal(), heart:buildHeart(),
   starPow:buildStarPow(), shroom:buildShroom(),
   cart:buildCart(),
@@ -501,6 +513,8 @@ const THEMES={ // painters are hoisted function declarations (defined below)
     bass:[131,0,165,0,196,0,165,0,131,0,175,0,220,0,175,0] },
   sonic:{ paint:()=>paintSpeedway(), terrain:'sonic', coll:'ring',
     bass:[110,110,0,110,0,123,131,0,110,110,0,147,131,0,123,0] },
+  moon:{ paint:()=>paintMoon(), terrain:'moon', coll:'orb', grav:0.72, // low gravity!
+    bass:[82,0,98,0,82,0,73,0,87,0,104,0,87,73,82,0] },
 };
 const LEVELS=[
 { name:'JUNGLE JAUNT', theme:'jungle', width:4000, goal:3900, star:{x:1420,y:158},
@@ -652,6 +666,51 @@ const LEVELS=[
     arc(1285,120,[[-45,20],[-15,0],[15,0],[45,20]]);
     arc(2440,130,[[-40,16],[0,-4],[40,16]]);
     arc(3500,120,[[-40,16],[0,-4],[40,16]]);
+  },
+},
+{ name:'CRATER CRUISE', theme:'moon', width:4400, goal:4300, star:{x:2100,y:158},
+  placed:[{t:'oneup',x:3050,y:86}], // 1UP way up on the high tech plank
+  solids:[
+    {x:0,   y:200, w:520},
+    {x:520, y:224, w:120},          // crater bowl — drop in, jump out
+    {x:640, y:200, w:360},
+    {x:1060,y:184, w:120},          // raised crater rim across a gap
+    {x:1180,y:200, w:420},
+    {x:1650,y:164, w:70, plank:1},  // floating alien tech platform
+    {x:1780,y:200, w:520},
+    {x:2300,y:224, w:140},          // wide crater bowl
+    {x:2440,y:200, w:380},
+    {x:2900,y:152, w:60, plank:1},
+    {x:3020,y:120, w:60, plank:1},
+    {x:3160,y:200, w:400},
+    {x:3640,y:184, w:120},          // rim hop
+    {x:3760,y:200, w:640},          // run-out to the goal
+  ],
+  cannons:[{x:1600,y:110,base:38,osc:18,power:7}],
+  springs:[{x:2520},{x:3900}],      // low gravity makes these MOON springs
+  enemies:[
+    {t:'walk',x:380},{t:'spike',x:700},{t:'walk',x:860},
+    {t:'bird',x:1120,y:120,r:80},
+    {t:'walk',x:1300},{t:'spike',x:1500},
+    {t:'walk',x:1900},{t:'walk',x:2020},
+    {t:'bird',x:2370,y:150,r:70},
+    {t:'spike',x:2620},{t:'walk',x:2740},
+    {t:'bird',x:3080,y:90,r:60},
+    {t:'walk',x:3300},{t:'spike',x:3450},
+    {t:'bird',x:3700,y:110,r:90},
+    {t:'walk',x:3980},{t:'walk',x:4120},
+  ],
+  letters:[{ch:'D',x:580,y:170},{ch:'O',x:1685,y:130},{ch:'G',x:3050,y:60},{ch:'E',x:3700,y:130}],
+  bunches:[{x:1120,y:150},{x:2370,y:190},{x:4200,y:170}],
+  bananas(line,arc,at){
+    line(60,460,38); line(660,1000,40); line(1200,1580,40);
+    line(1800,2260,42); line(2460,2800,42); line(3180,3540,42); line(3780,4240,40);
+    arc(580,190,[[-30,10],[-15,2],[0,-2],[15,2],[30,10]]);   // over the first bowl
+    arc(1120,150,[[-30,12],[0,0],[30,12]]);                  // crater rim arc
+    arc(2370,190,[[-40,14],[-14,2],[14,2],[40,14]]);         // wide bowl arc
+    arc(3600,150,[[-30,12],[0,0],[30,12]]);
+    at([1665,144],[1685,144],[2915,132],[2935,132],[3035,100],[3055,100]);
+    at([2520,150],[2520,120],[2520,90],[3900,150],[3900,116],[3900,82]); // spring columns
   },
 },
 ];
@@ -1015,6 +1074,84 @@ function paintSpeedway(){
   }
 }
 
+/* ===== THEME 4: lunar surface ===== */
+function paintMoon(){
+  { const g=skyC.getContext('2d'), R=prng(53);
+    const gr=g.createLinearGradient(0,0,0,VH);
+    gr.addColorStop(0,'#020208'); gr.addColorStop(0.6,'#0a0a22'); gr.addColorStop(1,'#141232');
+    g.fillStyle=gr; g.fillRect(0,0,VW,VH);
+    for(let i=0;i<90;i++){ // starfield
+      const sx=(R()*VW)|0, sy=(R()*VH*0.85)|0, b=R();
+      g.fillStyle=b>0.92?'#39e6ff':b>0.5?'#ffffff':'#8890b8';
+      g.fillRect(sx,sy,b>0.85?2:1,b>0.85?2:1);
+    }
+    g.fillStyle='#c8d8f8'; g.fillRect(60,30,1,1); g.fillRect(58,32,5,1); g.fillRect(60,34,1,1); // twinkle cross
+    // the Earth, hanging in the black
+    const ex=252,ey=44,er=20;
+    g.fillStyle='#0a2a6a'; g.beginPath(); g.arc(ex,ey,er,0,7); g.fill();
+    g.fillStyle='#1e62c8'; g.beginPath(); g.arc(ex-2,ey-2,er-2,0,7); g.fill();
+    g.fillStyle='#2fae4a'; // continents
+    g.beginPath(); g.ellipse(ex-8,ey-6,6,4,0.6,0,7); g.fill();
+    g.beginPath(); g.ellipse(ex+6,ey+5,5,6,-0.4,0,7); g.fill();
+    g.fillStyle='rgba(255,255,255,.75)'; // cloud streaks
+    g.fillRect(ex-14,ey+2,10,2); g.fillRect(ex,ey-10,12,2); g.fillRect(ex-4,ey+11,9,2);
+    g.fillStyle='rgba(2,2,8,.45)'; // night-side shadow
+    g.beginPath(); g.arc(ex+7,ey+3,er,0,7); g.fill();
+  }
+  { const g=deepC.getContext('2d'), R=prng(59); // far crater ridge, black-purple
+    g.clearRect(0,0,512,LH);
+    g.fillStyle='#100d20';
+    g.beginPath(); g.moveTo(0,190);
+    for(let x=0;x<=512;x+=16) g.lineTo(x,168+Math.sin(x*W1*3)*10+Math.sin(x*W1*7)*6);
+    g.lineTo(512,LH); g.lineTo(0,LH); g.closePath(); g.fill();
+  }
+  { const g=farC.getContext('2d'), R=prng(61); // jagged grey mountains
+    g.clearRect(0,0,512,LH);
+    g.fillStyle='#232134';
+    g.beginPath(); g.moveTo(0,LH);
+    let x=0,y=196;
+    while(x<=512){ g.lineTo(x,y); x+=18+R()*26; y=176+R()*30; }
+    g.lineTo(512,196); g.lineTo(512,LH); g.closePath(); g.fill();
+    g.fillStyle='#37344e'; // lit peak edges
+    for(let px=8;px<512;px+=44+((px*7)%30)) g.fillRect(px,182+((px*13)%18),3,2);
+    g.fillRect(0,208,512,LH-208);
+  }
+  { const g=midC.getContext('2d'), R=prng(67); // near moonscape + alien colony
+    g.clearRect(0,0,512,LH);
+    g.fillStyle='#3a3850';
+    let x=R()*16;
+    while(x<512){
+      const r=12*(0.7+R()*0.9);
+      for(const off of [0,-512,512]){ g.beginPath(); g.arc(x+off,216,r,0,7); g.fill(); }
+      x+=r*1.3;
+    }
+    g.fillRect(0,214,512,LH-214);
+    g.fillStyle='#2a2840'; // crater pocks on the near hills
+    for(let i=0;i<10;i++){ const cx2=(R()*512)|0; g.beginPath(); g.ellipse(cx2,208+R()*8,4+R()*4,2,0,0,7); g.fill(); }
+    const deco=[];
+    { let bx=40+R()*40; while(bx<560){ deco.push({bx,s:5+R()*4,kind:R()}); bx+=86+R()*76; } }
+    for(const m of deco) for(const off of [0,-512]){
+      const bx=m.bx+off;
+      if(m.kind<0.45){ // glass dome with a little alien inside
+        g.fillStyle='rgba(120,220,255,.28)'; g.beginPath(); g.arc(bx,214,m.s+4,Math.PI,0); g.fill();
+        g.strokeStyle='#69c8e8'; g.lineWidth=1; g.beginPath(); g.arc(bx,214,m.s+4,Math.PI,0); g.stroke();
+        g.fillStyle='#39e07a'; g.fillRect(bx-2,210,4,4); // alien blob
+        g.fillStyle='#0a0a22'; g.fillRect(bx-1,211,1,1); g.fillRect(bx+1,211,1,1);
+      } else if(m.kind<0.75){ // green crystal cluster
+        g.fillStyle='#1a5a2e';
+        g.beginPath(); g.moveTo(bx-4,215); g.lineTo(bx-1,215-m.s-3); g.lineTo(bx+2,215); g.closePath(); g.fill();
+        g.fillStyle='#39e07a';
+        g.beginPath(); g.moveTo(bx,215); g.lineTo(bx+3,215-m.s); g.lineTo(bx+6,215); g.closePath(); g.fill();
+        g.fillStyle='#a0ffc8'; g.fillRect(bx+2,215-m.s+2,1,3);
+      } else { // antenna beacon
+        g.fillStyle='#5a5872'; g.fillRect(bx-1,214-m.s*2,2,m.s*2);
+        g.fillStyle='#8a88a8'; g.fillRect(bx-4,214-m.s*2,8,1);
+        g.fillStyle='#ff3d5e'; g.fillRect(bx-1,214-m.s*2-3,2,2);
+      }
+    }
+  }
+}
+
 /* ================= GAME STATE ================= */
 const G={
   mode:'title', t:0, stateT:0, level:1, selLevel:0, startIdx:0,
@@ -1347,7 +1484,7 @@ function die(){
 }
 function updatePlayer(){
   const P=G.P, K=G.keys;
-  const ACC=0.18, MAXR=2.6, FRIC=0.14, GRAV=0.22, JUMPV=-5.2;
+  const ACC=0.18, MAXR=2.6, FRIC=0.14, GRAV=0.22*((THEME&&THEME.grav)||1), JUMPV=-5.2;
 
   /* --- in a barrel cannon --- */
   if(P.inBarrel>=0){
@@ -1847,6 +1984,28 @@ function drawSolids(){
       for(let gx=x+2;gx<x+s.w-2;gx+=7) ctx.fillRect(gx,y,2,3);
       continue;
     }
+    if(t==='moon'){
+      // grey regolith with dust speckles and a pale crusted surface
+      ctx.fillStyle='#2e2c3e'; ctx.fillRect(x,y,s.w,h);
+      ctx.fillStyle='#454356';
+      for(let i=0;i<s.w*h/130;i++){
+        const sx=(Math.sin(s.x+i*7.13)*.5+.5)*s.w, sy=(Math.sin(s.x*3+i*13.77)*.5+.5)*(h-10)+8;
+        ctx.fillRect(x+sx|0,y+sy|0,2,2);
+      }
+      ctx.fillStyle='#1c1a2c'; // embedded craters
+      for(let i=0;i<s.w*h/900;i++){
+        const cx2=(Math.sin(s.x*5+i*9.7)*.5+.5)*(s.w-16)+8;
+        const cy2=(Math.sin(s.x*2+i*5.3)*.5+.5)*(h-26)+16;
+        ctx.beginPath(); ctx.ellipse((x+cx2)|0,(y+cy2)|0,5,3,0,0,7); ctx.fill();
+      }
+      ctx.fillStyle='#b4b2c6'; ctx.fillRect(x,y,s.w,4); // dusty crust
+      ctx.fillStyle='#7c7a92'; ctx.fillRect(x,y+4,s.w,2);
+      ctx.fillStyle='#d8d6e8';
+      for(let gx=x+3;gx<x+s.w-3;gx+=11) ctx.fillRect(gx,y+1,3,1);
+      ctx.fillStyle='#54526a'; // surface pocks
+      for(let gx=x+7;gx<x+s.w-4;gx+=17) ctx.fillRect(gx+((gx>>3)%4),y+2,3,2);
+      continue;
+    }
     // near-black jungle soil
     ctx.fillStyle='#221409'; ctx.fillRect(x,y,s.w,h);
     ctx.fillStyle='#3d2a15';
@@ -2203,7 +2362,7 @@ function drawTitle(){
   ctx.fillStyle='rgba(7,6,15,.35)'; ctx.fillRect(0,0,VW,VH);
   ctext('DOGE',30,'#ffd23e',26);
   ctext('RUNNER',64,'#4db34d',16);
-  ctext('JUNGLE - PIPES - EMERALD ZONES',92,'#fff',6);
+  ctext('JUNGLE - PIPES - EMERALD - MOON',92,'#fff',6);
   if((G.stateT&63)<44) ctext('PRESS ENTER TO PLAY',118,'#fff',7);
   ctext('ZONE: < '+LEVELS[G.selLevel].name+' >',136,'#ffd23e',6);
   const selName=LEVELS[G.selLevel].name;

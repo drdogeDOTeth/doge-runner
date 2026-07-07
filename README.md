@@ -9,12 +9,14 @@ locally in your browser, the same "pre-rendered 3D" trick Donkey Kong Country us
 
 ## The games
 
-- **`index.html` — DOGE RUNNER**: side-scrolling platformer with three retro zones that
+- **`index.html` — DOGE RUNNER**: side-scrolling platformer with four retro zones that
   rotate as you clear them, each faster than the last:
   1. **Jungle Jaunt** — DKC-style jungle with barrel cannon chains over the big pit.
   2. **Pipe Panic** — plumber-style meadow with green pipes, brick platforms, and coins.
   3. **Emerald Rush** — speedway with checkerboard cliffs, sea horizon, rings, and
      springs that launch you sky-high.
+  4. **Crater Cruise** — a low-gravity moonscape: starfield and hanging Earth, an alien
+     colony of glass domes, energy-orb pickups, and floaty moon-jump physics.
 - **`arcade.html` — DK REMIX (1981 arcade mode)**: single-screen barrels-and-ladders
   classic. Girders, ladders, hammers, fireballs, bonus timer, high score.
 

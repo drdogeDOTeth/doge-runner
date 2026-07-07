@@ -19,7 +19,7 @@
    tier = the difficulty loop (the "L1/L2..." level counter). Each (zone,tier)
    is its own board. tier<=1 uses the legacy key so old scores still show. */
 
-const LEVELS=['JUNGLE JAUNT','PIPE PANIC','EMERALD RUSH'];
+const LEVELS=['JUNGLE JAUNT','PIPE PANIC','EMERALD RUSH','CRATER CRUISE'];
 const MIN_TIME=600;   // 10s @ 60fps — no legit clear is faster; blocks fakes
 const CORS={
   'Access-Control-Allow-Origin':'*',
