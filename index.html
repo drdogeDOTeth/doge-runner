@@ -2455,6 +2455,21 @@ function ctext(s,y,col='#fff',size=8){
   const w=ctx.measureText(s).width;
   otext(s,Math.round((VW-w)/2),y,col,size);
 }
+/* polished, centered logo glyphs: bevel outline + drop shadow + gradient + top sheen */
+function logoText(s,y,size,c1,c2,outline){
+  ctx.font=size+'px "Press Start 2P"'; ctx.textBaseline='top';
+  const w=ctx.measureText(s).width, x=Math.round((VW-w)/2);
+  ctx.fillStyle='rgba(0,0,0,.4)'; ctx.fillText(s,x+2,y+3);          // drop shadow
+  ctx.fillStyle=outline;                                            // rounded 2px bevel
+  for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++) if((dx||dy)&&dx*dx+dy*dy<=5) ctx.fillText(s,x+dx,y+dy);
+  const g=ctx.createLinearGradient(0,y-1,0,y+size);                 // gradient body
+  g.addColorStop(0,c1); g.addColorStop(.5,c1); g.addColorStop(1,c2);
+  ctx.fillStyle=g; ctx.fillText(s,x,y);
+  ctx.save();                                                       // top sheen
+  ctx.beginPath(); ctx.rect(x-3,y-1,w+6,Math.max(2,size*0.34)); ctx.clip();
+  ctx.fillStyle='rgba(255,255,255,.28)'; ctx.fillText(s,x,y);
+  ctx.restore();
+}
 function drawParallax(){
   ctx.drawImage(skyC,0,0);
   const tile=(c,f,fy)=>{
@@ -2933,9 +2948,13 @@ function drawTitle(){
   drawParallax();
   drawSolids();
   ctx.fillStyle='rgba(7,6,15,.35)'; ctx.fillRect(0,0,VW,VH);
-  ctext('DOGE',30,'#ffd23e',26);
-  ctext('RUNNER',64,'#4db34d',16);
-  ctext('JUNGLE - PIPES - EMERALD - MOON',88,'#fff',6);
+  // soft plate to lift the logo off the busy jungle
+  const plate=ctx.createLinearGradient(0,20,0,86);
+  plate.addColorStop(0,'rgba(6,5,16,0)'); plate.addColorStop(.5,'rgba(6,5,16,.4)'); plate.addColorStop(1,'rgba(6,5,16,0)');
+  ctx.fillStyle=plate; ctx.fillRect(0,20,VW,66);
+  logoText('DOGE',28,23,'#ffe98a','#e0901a','#3a1f08');
+  logoText('RUNNER',55,12,'#9af07a','#279227','#0e330f');
+  ctext('JUNGLE - PIPES - EMERALD - MOON',86,'#cfe0c0',6);
   TITLE_ITEMS.forEach((s,i)=>{
     const on=i===(G.menuSel||0);
     ctext(on?'> '+s+' <':s,100+i*13,on?'#ffd23e':'#9ab',6);
