@@ -40,7 +40,11 @@ github.com → your packages, or add registry credentials in Coolify.)
 
 ## How to play
 
-- On the title screen, press **A / D** to pick your starting zone, then **ENTER**.
+- Press **ENTER** on the title to open the **World Map** (Super Mario World style).
+  Walk Doge along the winding path with **← →**, then **SPACE/ENTER** to play the
+  highlighted level. Each node is a zone at a set difficulty (L1..L12, progressively
+  harder); the map shows that board's best time. Clearing a level returns you to the
+  map with the next node highlighted — lives carry across the session.
 - **A D** run (arrows work too) &nbsp; **SPACE** jump (hold for height, press again mid-air to double jump)
 - **SHIFT / X** roll attack &nbsp; **P** pause &nbsp; **M** mute
 - Stomp or roll the critters; never touch the spiky ones.
