@@ -221,6 +221,10 @@ const rnd=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
 const overlap=(ax,ay,aw,ah,bx,by,bw,bh)=>ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
+function fighterBox(f){
+  const h=Math.min(34,Math.max(26,((f.spr&&f.spr.h)||34)-8));
+  return {x:f.x-8,y:f.y-h,w:16,h};
+}
 const cv=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
 
 /* ================= AUDIO ================= */
@@ -319,10 +323,14 @@ function headDoge(g,R){
   R(15,5,2,2,'#101028'); R(9,8,3,2,'#d4a855');
 }
 function headBtc(g,R){
-  g.fillStyle='#c86e08'; g.beginPath(); g.arc(14.5,6.5,6.6,0,7); g.fill();
-  g.fillStyle='#f7931a'; g.beginPath(); g.arc(14.5,6.5,5.6,0,7); g.fill();
-  R(13,3,2,7,'#fff4dc'); R(13,3,4,2,'#fff4dc'); R(13,6,4,2,'#fff4dc'); R(13,8,4,2,'#fff4dc');
-  R(17,4,1,2,'#fff4dc'); R(17,7,1,2,'#fff4dc'); R(14,1,2,2,'#fff4dc'); R(14,10,2,2,'#fff4dc');
+  // Big, unmistakable orange coin with the real double-stem Bitcoin mark.
+  g.fillStyle='#6e3700'; g.beginPath(); g.arc(14.5,7,7.4,0,7); g.fill();
+  g.fillStyle='#f7931a'; g.beginPath(); g.arc(14.5,7,6.4,0,7); g.fill();
+  g.strokeStyle='#ffb347'; g.lineWidth=1; g.beginPath(); g.arc(12.5,5,3.3,3.35,5.9); g.stroke();
+  const W='#fff8e8';
+  R(12,2,2,10,W); R(11,3,6,2,W); R(11,6,7,2,W); R(11,9,6,2,W);
+  R(17,4,2,2,W); R(18,7,1,2,W); R(17,9,1,1,W);
+  R(12,0,1,3,W); R(15,0,1,3,W); R(12,11,1,3,W); R(15,11,1,3,W);
 }
 function headEth(g,R){
   g.fillStyle='#98b0f8'; g.beginPath();
@@ -332,83 +340,113 @@ function headEth(g,R){
   R(13,5,3,3,'#c8d4ff');
 }
 function headSol(g,R){
-  R(8,2,13,10,'#181828'); R(9,4,11,2,'#14f195'); R(9,7,11,2,'#9945ff');
-  R(19,4,1,5,'#e8e8ff'); R(8,1,13,1,'#2a2a44');
+  // Deep-space helmet with Solana's three luminous slanted bars.
+  R(7,1,15,13,'#050712'); R(8,2,13,11,'#10142a'); R(9,3,11,1,'#20284d');
+  const bar=(y,x1,x2,col)=>{ g.fillStyle=col; g.beginPath();
+    g.moveTo(x1,y); g.lineTo(x2,y); g.lineTo(x2-2,y+2); g.lineTo(x1-2,y+2); g.closePath(); g.fill(); };
+  bar(4,11,20,'#14f195'); bar(7,10,19,'#9945ff'); bar(10,11,20,'#21d4fd');
 }
 function headApe(g,R){
   R(8,1,13,11,'#3a2a1e'); R(8,0,13,3,'#0054f9'); R(20,1,2,2,'#0054f9');
   R(12,4,9,7,'#c9a37a'); R(12,3,9,2,'#241811');
   R(13,5,2,2,'#101010'); R(17,5,2,2,'#101010'); R(15,8,4,2,'#7a5a3a');
 }
+function drawChestMark(id,g,R){
+  // Dark badge keeps each token mark readable on every pose and shirt color.
+  R(11,17,10,9,'#090b18'); R(12,18,8,7,'#15182a');
+  if(id==='doge'){
+    const C='#f6d365'; R(13,18,2,7,C); R(13,18,4,1,C); R(13,24,4,1,C);
+    R(17,19,2,5,C); R(12,21,7,1,C);
+  } else if(id==='btc'){
+    const C='#f7931a'; R(14,18,2,7,C); R(13,19,5,2,C); R(13,22,5,2,C);
+    R(17,20,2,1,C); R(17,24,1,1,C); R(14,17,1,2,C); R(16,17,1,2,C);
+  } else if(id==='eth'){
+    g.fillStyle='#c9d3ff'; g.beginPath(); g.moveTo(16,17); g.lineTo(20,21); g.lineTo(16,23); g.lineTo(12,21); g.closePath(); g.fill();
+    g.fillStyle='#7387e8'; g.beginPath(); g.moveTo(16,18); g.lineTo(16,23); g.lineTo(12,21); g.closePath(); g.fill();
+    g.fillStyle='#8ea3ff'; g.beginPath(); g.moveTo(12,22); g.lineTo(16,24); g.lineTo(20,22); g.lineTo(16,26); g.closePath(); g.fill();
+  } else if(id==='sol'){
+    const bar=(y,a,b,col)=>{ g.fillStyle=col; g.beginPath(); g.moveTo(a,y); g.lineTo(b,y); g.lineTo(b-1,y+2); g.lineTo(a-1,y+2); g.closePath(); g.fill(); };
+    bar(18,14,20,'#14f195'); bar(21,13,19,'#9945ff'); bar(24,14,20,'#21d4fd');
+  } else if(id==='ape'){
+    const C='#62a0ff'; R(13,19,2,4,C); R(18,19,2,4,C); R(14,18,5,1,C);
+    R(14,23,5,2,C); R(12,20,2,3,C); R(20,20,1,3,C);
+    R(15,20,1,1,'#e8f2ff'); R(18,20,1,1,'#e8f2ff'); R(16,22,2,1,'#e8f2ff');
+  }
+}
 function buildFighterSprite(P){
   function frame(pose){
-    const c=cv(28,34), g=c.getContext('2d');
+    const c=cv(32,42), g=c.getContext('2d');
     const R=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};
     const S=P.suit, D=P.dark, T=P.trim, B=P.boot;
-    // torso (y13..20) + belt
-    R(9,13,10,7,S); R(9,19,10,2,D);
-    const armL=()=>{R(6,14,3,6,S);R(6,20,3,2,T);};
-    const armR=()=>{R(19,14,3,6,S);R(19,20,3,2,T);};
-    const legsI=()=>{R(10,21,3,9,D);R(15,21,3,9,D);R(9,30,5,3,B);R(15,30,5,3,B);};
+    // Taller athletic rig: broad shoulders, 12px shirt panel, longer legs.
+    R(8,14,16,13,S); R(7,15,18,3,S); R(8,25,16,2,D);
+    R(9,15,2,10,T); R(22,15,2,10,D);
+    const armL=()=>{R(4,15,4,9,S);R(4,24,4,3,T);};
+    const armR=()=>{R(24,15,4,9,S);R(24,24,4,3,T);};
+    const legsI=()=>{R(10,27,5,11,D);R(17,27,5,11,D);R(9,38,7,3,B);R(17,38,7,3,B);};
     switch(pose){
       case 'idle': armL();armR();legsI(); break;
       case 'run1':
-        R(19,15,6,3,S);R(25,15,2,3,T); R(4,16,3,6,S);
-        R(17,21,4,7,D);R(19,28,5,3,B); R(8,22,3,6,D);R(5,26,5,3,B); break;
+        R(24,16,6,4,S);R(29,16,3,4,T); R(3,17,4,8,S);R(3,24,4,3,T);
+        R(18,27,5,9,D);R(20,36,7,3,B); R(9,28,4,8,D);R(5,34,7,3,B); break;
       case 'run2':
-        R(19,16,3,5,S); R(6,15,3,5,S);
-        R(11,21,3,9,D);R(10,30,5,3,B); R(14,22,3,7,D);R(14,28,5,3,B); break;
+        R(24,17,4,8,S);R(24,24,4,3,T); R(4,16,4,8,S);R(4,23,4,3,T);
+        R(11,27,5,11,D);R(10,38,7,3,B); R(17,28,5,9,D);R(17,37,7,3,B); break;
       case 'run3':
-        R(19,16,3,6,S); R(2,15,6,3,S);R(1,15,2,3,T);
-        R(8,21,4,7,D);R(5,28,5,3,B); R(16,22,3,6,D);R(18,26,5,3,B); break;
+        R(24,17,4,8,S);R(24,24,4,3,T); R(2,16,6,4,S);R(0,16,3,4,T);
+        R(9,27,5,9,D);R(5,36,7,3,B); R(19,28,4,8,D);R(21,34,7,3,B); break;
       case 'run4':
-        R(19,15,3,5,S); R(6,16,3,5,S);
-        R(14,21,3,9,D);R(14,30,5,3,B); R(11,22,3,7,D);R(10,28,5,3,B); break;
+        R(24,16,4,8,S);R(24,23,4,3,T); R(4,17,4,8,S);R(4,24,4,3,T);
+        R(17,27,5,11,D);R(17,38,7,3,B); R(11,28,5,9,D);R(10,37,7,3,B); break;
       case 'jump':
-        R(5,9,3,7,S);R(5,8,3,2,T); R(20,9,3,7,S);R(20,8,3,2,T);
-        R(10,21,3,5,D);R(8,25,5,3,B); R(15,21,3,5,D);R(15,25,5,3,B); break;
+        R(4,8,4,10,S);R(4,7,4,3,T); R(24,8,4,10,S);R(24,7,4,3,T);
+        R(10,27,5,7,D);R(7,33,8,3,B); R(17,27,5,7,D);R(17,33,8,3,B); break;
       case 'fall':
-        R(4,10,3,7,S);R(4,9,3,2,T); R(21,10,3,7,S);R(21,9,3,2,T);
-        R(10,21,3,8,D);R(9,29,5,3,B); R(16,21,3,5,D);R(17,25,5,3,B); break;
+        R(3,10,4,10,S);R(3,9,4,3,T); R(25,10,4,10,S);R(25,9,4,3,T);
+        R(10,27,5,10,D);R(9,37,7,3,B); R(18,27,5,7,D);R(20,34,7,3,B); break;
       case 'punch':
-        R(19,14,8,3,S);R(26,13,2,4,T); R(6,15,3,5,S);R(6,20,3,2,T);
-        R(9,21,3,9,D);R(7,30,5,3,B); R(15,21,4,8,D);R(16,29,5,3,B); break;
+        R(24,15,7,4,S);R(29,14,3,6,T); R(4,16,4,8,S);R(4,23,4,3,T);
+        R(9,27,5,11,D);R(7,38,7,3,B); R(18,27,5,10,D);R(18,37,7,3,B); break;
       case 'kick':
-        R(4,14,3,6,S); R(19,14,3,5,S);
-        R(15,20,8,3,D);R(23,18,4,4,B); R(10,21,3,9,D);R(8,30,5,3,B); break;
+        R(4,15,4,9,S);R(4,23,4,3,T); R(24,15,4,8,S);
+        R(17,27,9,4,D);R(25,25,7,5,B); R(10,27,5,11,D);R(8,38,7,3,B); break;
       case 'victory':
-        R(5,7,3,9,S);R(5,6,3,2,T); R(20,7,3,9,S);R(20,6,3,2,T);
+        R(4,6,4,12,S);R(4,5,4,3,T); R(24,6,4,12,S);R(24,5,4,3,T);
         legsI(); break;
       case 'hurt':
-        R(3,11,3,6,S);R(3,10,3,2,T); R(21,13,3,5,S);
-        R(8,21,4,7,D);R(5,26,5,3,B); R(15,21,3,6,D);R(17,25,5,3,B); break;
+        R(2,10,4,9,S);R(2,9,4,3,T); R(26,14,4,8,S);
+        R(9,27,5,9,D);R(5,35,7,3,B); R(18,27,5,8,D);R(21,34,7,3,B); break;
     }
-    // head last so it overlaps shoulders
+    drawChestMark(P.id,g,R);
+    // Heads were authored around x=14.5; center them on the wider 32px rig.
+    g.save(); g.translate(1.5,0);
     P.head(g,(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);});
+    g.restore();
     return c;
   }
   const names=['idle','run1','run2','run3','run4','jump','fall','punch','kick','victory','hurt'];
   const frames={}; names.forEach(n=>frames[n]=frame(n));
-  return {frames,w:28,h:34};
+  return {frames,w:32,h:42};
 }
 const CHARS=[
  {id:'doge',name:'DOGE',col:'#e8c170',weight:1.0,speed:1.0,jump:1.0,cd:130,
-  spec:'WOW BARK',pal:{suit:'#e0a83c',dark:'#a87820',trim:'#fff2c8',boot:'#7a4a12',head:headDoge}},
+  spec:'WOW BARK',pal:{id:'doge',suit:'#d89a2b',dark:'#855515',trim:'#ffe9a8',boot:'#60380d',head:headDoge}},
  {id:'btc',name:'BITCOIN',col:'#f7931a',weight:1.35,speed:0.82,jump:0.9,cd:200,
-  spec:'HODL SLAM',pal:{suit:'#f7931a',dark:'#b05f08',trim:'#ffe0a8',boot:'#5a3a0a',head:headBtc}},
+  spec:'HODL SLAM',pal:{id:'btc',suit:'#f7931a',dark:'#9f4f00',trim:'#fff2cf',boot:'#492500',head:headBtc}},
  {id:'eth',name:'ETHEREUM',col:'#8aa0f8',weight:0.98,speed:1.0,jump:1.05,cd:160,
-  spec:'MERGE DASH',pal:{suit:'#5a6ad0',dark:'#3a4490',trim:'#c8d0ff',boot:'#22285a',head:headEth}},
+  spec:'MERGE DASH',pal:{id:'eth',suit:'#5968cf',dark:'#313a85',trim:'#d5dcff',boot:'#1b214f',head:headEth}},
  {id:'sol',name:'SOLANA',col:'#14f195',weight:0.85,speed:1.25,jump:1.1,cd:190,
-  spec:'SPEED BLITZ',pal:{suit:'#1c1c30',dark:'#101020',trim:'#14f195',boot:'#0a0a14',head:headSol}},
+  spec:'SPEED BLITZ',pal:{id:'sol',suit:'#111426',dark:'#080a16',trim:'#14f195',boot:'#05060d',head:headSol}},
  {id:'ape',name:'APECHAIN',col:'#4a86ff',weight:1.12,speed:0.95,jump:1.18,cd:170,
-  spec:'BANANA BARRAGE',pal:{suit:'#0054f9',dark:'#0038a8',trim:'#8ab0ff',boot:'#101c48',head:headApe}},
+  spec:'BANANA BARRAGE',pal:{id:'ape',suit:'#075cf3',dark:'#00348f',trim:'#9bc1ff',boot:'#0b1a48',head:headApe}},
  {id:'custom',name:'CUSTOM',col:'#ff2d55',weight:1.0,speed:1.0,jump:1.0,cd:200,
   spec:'AVATAR NOVA',pal:null},
 ];
 CHARS.forEach(c=>{ if(c.pal) c.spr=buildFighterSprite(c.pal); });
 const PORTRAITS=CHARS.map(c=>{
   const p=cv(22,22), g=p.getContext('2d'); g.imageSmoothingEnabled=false;
-  if(c.spr) g.drawImage(c.spr.frames.idle,6,0,17,15,1,2,21,18);
+  if(c.spr){ const f=c.spr.frames.idle, sw=Math.min(24,f.width), sh=Math.min(28,f.height);
+    g.drawImage(f,(f.width-sw)/2,0,sw,sh,1,1,20,20); }
   else { g.fillStyle='#1c1c30'; g.fillRect(0,0,22,22); g.fillStyle='#ff2d55';
     g.font='14px monospace'; g.fillText('?',8,16); }
   return p;
@@ -845,7 +883,8 @@ function fighterHitCheck(f,idx,bx,by,bw,bh,dmg,kbx,kby,victims,sndName){
   G.p.forEach((foe,j)=>{
     if(j===idx||foe.dead||foe.respawn>0||foe.inv>0) return;
     if(victims&&victims[j]) return;
-    if(overlap(bx,by,bw,bh,foe.x-7,foe.y-26,14,26)){
+    const hb=fighterBox(foe);
+    if(overlap(bx,by,bw,bh,hb.x,hb.y,hb.w,hb.h)){
       if(victims) victims[j]=true;
       applyHit(f,foe,dmg,kbx,kby,f.face);
       if(sndName&&sfx[sndName]) sfx[sndName]();
@@ -903,7 +942,8 @@ function updateSpecial(f,idx){
       // tick hits DRAG victims along the dash so every hit connects
       G.p.forEach((foe,j)=>{
         if(j===idx||foe.dead||foe.respawn>0||foe.inv>0) return;
-        if(overlap(f.x-12,f.y-26,24,26,foe.x-7,foe.y-26,14,26)){
+        const hb=fighterBox(foe);
+        if(overlap(f.x-12,f.y-32,24,32,hb.x,hb.y,hb.w,hb.h)){
           applyHit(f,foe,2,0.3,-0.3,f.face);
           foe.vx=f.face*6.2; foe.vy=-0.2; // carried by the blitz
           sfx.hit1();
@@ -1100,7 +1140,8 @@ function updateFight(){
       }
       G.p.forEach((foe,j)=>{
         if(pr.dead||j===pr.owner||foe.dead||foe.respawn>0||foe.inv>0) return;
-        if(overlap(pr.x-6,pr.y-6,12,12,foe.x-7,foe.y-26,14,26)){
+        const hb=fighterBox(foe);
+        if(overlap(pr.x-6,pr.y-6,12,12,hb.x,hb.y,hb.w,hb.h)){
           applyHit(G.p[pr.owner],foe,pr.dmg,pr.kbx,pr.kby,pr.vx>=0?1:-1);
           sfx.hit2(); pr.dead=true;
         }
@@ -1317,9 +1358,9 @@ function drawSelect(){
     ctx.strokeStyle=c.col; ctx.globalAlpha=0.6; ctx.strokeRect(x+0.5,y+0.5,SEL_W-1,SEL_H-1); ctx.globalAlpha=1;
     if(c.spr){
       const f=c.spr.frames.idle;
-      const scale=i===5?1:1.4;
+      const scale=Math.min(48/f.height,42/f.width);
       const dw=f.width*scale, dh=f.height*scale;
-      ctx.drawImage(f,x+SEL_W/2-dw/2,y+44-dh,dw,dh);
+      ctx.drawImage(f,x+SEL_W/2-dw/2,y+50-dh,dw,dh);
     } else {
       txt('?',x+SEL_W/2-5,y+14,'#ff2d55',16);
       txt('UPLOAD',x+SEL_W/2-18,y+34,'#889',5);
