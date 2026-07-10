@@ -19,6 +19,14 @@ locally in your browser, the same "pre-rendered 3D" trick Donkey Kong Country us
      colony of glass domes, energy-orb pickups, and floaty moon-jump physics.
 - **`arcade.html` — DK REMIX (1981 arcade mode)**: single-screen barrels-and-ladders
   classic. Girders, ladders, hammers, fireballs, bonus timer, high score.
+- **`brawl.html` — DOGE BRAWL**: a Smash-style crypto platform fighter on a floating
+  island. Damage % + knockback, 3 stocks, blast zones. Fight the CPU or a friend in
+  **local 2-player** (shared keyboard or two gamepads). Five crypto fighters — **Doge,
+  Bitcoin, Ethereum, Solana, Apechain** — each with a unique special (WOW BARK, HODL
+  SLAM, MERGE DASH, SPEED BLITZ, BANANA BARRAGE), plus a **CUSTOM slot**: drop any
+  `.vrm`/`.glb` and brawl as your own avatar (special: AVATAR NOVA). The pause menu
+  has full **Controls**, a **Moves list** (basics + per-character specials), and
+  lab-tested **combos** like the Meteor Dunk and the Rug Pull.
 
 ## Run it
 
@@ -105,6 +113,7 @@ https://drdogedoteth.github.io/doge-runner/arcade.html?hero=...&kong=...&lady=..
 
 - `index.html` params: `hero` (alias `avatar`), `walker`, `spiky`, `bird`
 - `arcade.html` params: `hero` (alias `avatar`), `kong` (alias `ape`), `lady`
+- `brawl.html` params: `fighter` (aliases `hero`, `avatar`) — loads the CUSTOM fighter
 - URLs without a `.vrm`/`.glb`/`.gltf` extension are assumed to be VRM.
 - The model's host must allow CORS (e.g. raw GitHub, IPFS gateways, most CDNs).
 - There's also a "paste a model URL" box in the sidebar of both games.

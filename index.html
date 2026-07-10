@@ -1849,7 +1849,7 @@ function closePanel(){ panelModal.classList.remove('on'); }
 document.getElementById('pmClose').addEventListener('click',closePanel);
 panelModal.addEventListener('pointerdown',e=>{ if(e.target===panelModal) closePanel(); }); // tap outside card
 
-const TITLE_ITEMS=['PLAY','LEADERBOARDS','CUSTOM MODELS','CONTROLS','HOW TO PLAY','ARCADE MODE'];
+const TITLE_ITEMS=['PLAY','LEADERBOARDS','CUSTOM MODELS','CONTROLS','HOW TO PLAY','ARCADE MODE','BRAWL MODE'];
 function titleAction(i){
   ensureAudio(); sfx.letter();
   if(i===0) enterMap(true);
@@ -1857,7 +1857,8 @@ function titleAction(i){
   else if(i===2) openPanel('models');
   else if(i===3) openPanel('controls');
   else if(i===4) openPanel('how');
-  else location.href='arcade.html';
+  else if(i===5) location.href='arcade.html';
+  else location.href='brawl.html';
 }
 const PAUSE_ITEMS=['RESUME','RESTART LEVEL','LEADERBOARDS','QUIT TO MAP'];
 
@@ -1937,7 +1938,7 @@ cvs.addEventListener('pointerdown',e=>{
     return;
   }
   if(G.mode==='title'){ // tap a main-menu row
-    for(let i=0;i<TITLE_ITEMS.length;i++) if(Math.abs(y-(100+i*13+3))<7){ G.menuSel=i; titleAction(i); return; }
+    for(let i=0;i<TITLE_ITEMS.length;i++) if(Math.abs(y-(98+i*12+3))<6){ G.menuSel=i; titleAction(i); return; }
     return;
   }
   if(G.mode==='gameover'){ enterMap(true); return; } // tap = ENTER
@@ -2980,7 +2981,7 @@ function drawTitle(){
   ctext('JUNGLE - PIPES - EMERALD - MOON',86,'#cfe0c0',6);
   TITLE_ITEMS.forEach((s,i)=>{
     const on=i===(G.menuSel||0);
-    ctext(on?'> '+s+' <':s,100+i*13,on?'#ffd23e':'#9ab',6);
+    ctext(on?'> '+s+' <':s,98+i*12,on?'#ffd23e':'#9ab',6);
   });
   ctext('ARROWS + ENTER  -  OR TAP',184,'#667',5);
   const fr=HERO.frames[['run1','run2','run3','run4'][(G.stateT>>3)%4]];
