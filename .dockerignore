@@ -2,3 +2,6 @@
 !index.html
 !arcade.html
 !brawl.html
+!assets/
+!assets/fighters/
+!assets/fighters/*.png

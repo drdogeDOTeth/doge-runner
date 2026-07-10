@@ -4,6 +4,7 @@
 FROM nginx:alpine
 
 COPY index.html arcade.html brawl.html /usr/share/nginx/html/
+COPY assets /usr/share/nginx/html/assets
 
 # nginx:alpine listens on 80 by default; Coolify routes to it via Traefik
 EXPOSE 80

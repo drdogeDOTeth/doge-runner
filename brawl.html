@@ -352,26 +352,8 @@ function headApe(g,R){
   R(13,5,2,2,'#101010'); R(17,5,2,2,'#101010'); R(15,8,4,2,'#7a5a3a');
 }
 function drawChestMark(id,g,R){
-  // Dark badge keeps each token mark readable on every pose and shirt color.
-  R(11,17,10,9,'#090b18'); R(12,18,8,7,'#15182a');
-  if(id==='doge'){
-    const C='#f6d365'; R(13,18,2,7,C); R(13,18,4,1,C); R(13,24,4,1,C);
-    R(17,19,2,5,C); R(12,21,7,1,C);
-  } else if(id==='btc'){
-    const C='#f7931a'; R(14,18,2,7,C); R(13,19,5,2,C); R(13,22,5,2,C);
-    R(17,20,2,1,C); R(17,24,1,1,C); R(14,17,1,2,C); R(16,17,1,2,C);
-  } else if(id==='eth'){
-    g.fillStyle='#c9d3ff'; g.beginPath(); g.moveTo(16,17); g.lineTo(20,21); g.lineTo(16,23); g.lineTo(12,21); g.closePath(); g.fill();
-    g.fillStyle='#7387e8'; g.beginPath(); g.moveTo(16,18); g.lineTo(16,23); g.lineTo(12,21); g.closePath(); g.fill();
-    g.fillStyle='#8ea3ff'; g.beginPath(); g.moveTo(12,22); g.lineTo(16,24); g.lineTo(20,22); g.lineTo(16,26); g.closePath(); g.fill();
-  } else if(id==='sol'){
-    const bar=(y,a,b,col)=>{ g.fillStyle=col; g.beginPath(); g.moveTo(a,y); g.lineTo(b,y); g.lineTo(b-1,y+2); g.lineTo(a-1,y+2); g.closePath(); g.fill(); };
-    bar(18,14,20,'#14f195'); bar(21,13,19,'#9945ff'); bar(24,14,20,'#21d4fd');
-  } else if(id==='ape'){
-    const C='#62a0ff'; R(13,19,2,4,C); R(18,19,2,4,C); R(14,18,5,1,C);
-    R(14,23,5,2,C); R(12,20,2,3,C); R(20,20,1,3,C);
-    R(15,20,1,1,'#e8f2ff'); R(18,20,1,1,'#e8f2ff'); R(16,22,2,1,'#e8f2ff');
-  }
+  // Actual supplied logo artwork is anti-aliased onto this badge after images load.
+  R(10,16,12,11,'#070914'); R(11,17,10,9,'#111526');
 }
 function buildFighterSprite(P){
   function frame(pose){
@@ -450,6 +432,37 @@ const PORTRAITS=CHARS.map(c=>{
   else { g.fillStyle='#1c1c30'; g.fillRect(0,0,22,22); g.fillStyle='#ff2d55';
     g.font='14px monospace'; g.fillText('?',8,16); }
   return p;
+});
+const TOKEN_LOGO_SPECS=[
+  {id:'doge',src:'assets/fighters/dogecoin.png',round:true},
+  {id:'btc',src:'assets/fighters/bitcoin.png'},
+  {id:'eth',src:'assets/fighters/ethereum.png'},
+  {id:'sol',src:'assets/fighters/solana.png',crop:[.15,.15,.70,.70]},
+  {id:'ape',src:'assets/fighters/apechain.png',crop:[.06,.12,.88,.76]},
+];
+function refreshBuiltinPortrait(i){
+  const p=PORTRAITS[i],g=p.getContext('2d'),f=CHARS[i].spr.frames.idle;
+  g.clearRect(0,0,p.width,p.height); g.imageSmoothingEnabled=true;
+  const sw=Math.min(24,f.width),sh=Math.min(28,f.height);
+  g.drawImage(f,(f.width-sw)/2,0,sw,sh,1,1,20,20);
+  g.imageSmoothingEnabled=false;
+}
+function stampTokenLogo(i,img,spec){
+  const sx=spec.crop?img.naturalWidth*spec.crop[0]:0;
+  const sy=spec.crop?img.naturalHeight*spec.crop[1]:0;
+  const sw=spec.crop?img.naturalWidth*spec.crop[2]:img.naturalWidth;
+  const sh=spec.crop?img.naturalHeight*spec.crop[3]:img.naturalHeight;
+  Object.values(CHARS[i].spr.frames).forEach(frame=>{
+    const g=frame.getContext('2d'); g.save(); g.imageSmoothingEnabled=true;
+    if(spec.round){ g.beginPath(); g.ellipse(16,21.5,5,4.5,0,0,7); g.clip(); }
+    g.drawImage(img,sx,sy,sw,sh,11,17,10,9); g.restore();
+  });
+  refreshBuiltinPortrait(i);
+}
+TOKEN_LOGO_SPECS.forEach((spec,i)=>{
+  const img=new Image(); img.decoding='async';
+  img.onload=()=>stampTokenLogo(i,img,spec);
+  img.src=spec.src;
 });
 function refreshCustomPortrait(){
   const c=CHARS[5], g=PORTRAITS[5].getContext('2d');
