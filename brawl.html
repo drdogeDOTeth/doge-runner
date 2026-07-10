@@ -352,8 +352,7 @@ function headApe(g,R){
   R(13,5,2,2,'#101010'); R(17,5,2,2,'#101010'); R(15,8,4,2,'#7a5a3a');
 }
 function drawChestMark(id,g,R){
-  // Actual supplied logo artwork is anti-aliased onto this badge after images load.
-  R(10,16,12,11,'#070914'); R(11,17,10,9,'#111526');
+  // Shirt logos are rendered separately at full canvas resolution.
 }
 function buildFighterSprite(P){
   function frame(pose){
@@ -434,36 +433,45 @@ const PORTRAITS=CHARS.map(c=>{
   return p;
 });
 const TOKEN_LOGO_SPECS=[
-  {id:'doge',src:'assets/fighters/dogecoin.png',round:true},
-  {id:'btc',src:'assets/fighters/bitcoin.png'},
-  {id:'eth',src:'assets/fighters/ethereum.png'},
-  {id:'sol',src:'assets/fighters/solana.png',crop:[.15,.15,.70,.70]},
-  {id:'ape',src:'assets/fighters/apechain.png',crop:[.06,.12,.88,.76]},
+  {id:'doge',src:'assets/fighters/dogecoin.png',mask:'circle'},
+  {id:'btc',src:'assets/fighters/bitcoin.png',mask:'white'},
+  {id:'eth',src:'assets/fighters/ethereum.png',mask:'eth'},
+  {id:'sol',src:'assets/fighters/solana.png',mask:'sol'},
+  {id:'ape',src:'assets/fighters/apechain.png',mask:'white'},
 ];
-function refreshBuiltinPortrait(i){
-  const p=PORTRAITS[i],g=p.getContext('2d'),f=CHARS[i].spr.frames.idle;
-  g.clearRect(0,0,p.width,p.height); g.imageSmoothingEnabled=true;
-  const sw=Math.min(24,f.width),sh=Math.min(28,f.height);
-  g.drawImage(f,(f.width-sw)/2,0,sw,sh,1,1,20,20);
-  g.imageSmoothingEnabled=false;
+const TOKEN_LOGOS={};
+function logoPath(g,pts){ g.beginPath(); pts.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.closePath(); }
+function buildTransparentLogo(img,spec){
+  const c=cv(256,256),g=c.getContext('2d'); g.imageSmoothingEnabled=true;
+  if(spec.mask==='circle'){
+    g.save(); g.beginPath(); g.arc(128,128,124,0,7); g.clip(); g.drawImage(img,0,0,256,256); g.restore();
+  } else if(spec.mask==='eth'){
+    g.save(); logoPath(g,[[128,14],[195,130],[128,171],[61,130]]); g.clip(); g.drawImage(img,0,0,256,256); g.restore();
+    g.save(); logoPath(g,[[61,142],[128,239],[195,142],[128,192]]); g.clip(); g.drawImage(img,0,0,256,256); g.restore();
+  } else if(spec.mask==='sol'){
+    const bars=[[[52,59],[205,59],[177,93],[51,93]],[[51,111],[176,111],[205,145],[81,145]],[[81,162],[205,162],[177,197],[51,197]]];
+    bars.forEach(points=>{g.save();logoPath(g,points);g.clip();g.drawImage(img,0,0,256,256);g.restore();});
+  } else {
+    g.drawImage(img,0,0,256,256);
+    const im=g.getImageData(0,0,256,256),d=im.data;
+    for(let i=0;i<d.length;i+=4){
+      const white=Math.min(d[i],d[i+1],d[i+2]);
+      d[i]=d[i+1]=d[i+2]=255; d[i+3]=clamp((white-145)*2.35,0,255);
+    }
+    g.clearRect(0,0,256,256); g.putImageData(im,0,0);
+  }
+  return c;
 }
-function stampTokenLogo(i,img,spec){
-  const sx=spec.crop?img.naturalWidth*spec.crop[0]:0;
-  const sy=spec.crop?img.naturalHeight*spec.crop[1]:0;
-  const sw=spec.crop?img.naturalWidth*spec.crop[2]:img.naturalWidth;
-  const sh=spec.crop?img.naturalHeight*spec.crop[3]:img.naturalHeight;
-  Object.values(CHARS[i].spr.frames).forEach(frame=>{
-    const g=frame.getContext('2d'); g.save(); g.imageSmoothingEnabled=true;
-    if(spec.round){ g.beginPath(); g.ellipse(16,21.5,5,4.5,0,0,7); g.clip(); }
-    g.drawImage(img,sx,sy,sw,sh,11,17,10,9); g.restore();
-  });
-  refreshBuiltinPortrait(i);
+function drawTokenLogo(g,id,x,y,w,h){
+  const logo=TOKEN_LOGOS[id]; if(!logo) return;
+  g.save(); g.imageSmoothingEnabled=true; g.drawImage(logo,x,y,w,h); g.restore();
 }
-TOKEN_LOGO_SPECS.forEach((spec,i)=>{
+TOKEN_LOGO_SPECS.forEach(spec=>{
   const img=new Image(); img.decoding='async';
-  img.onload=()=>stampTokenLogo(i,img,spec);
+  img.onload=()=>{TOKEN_LOGOS[spec.id]=buildTransparentLogo(img,spec);};
   img.src=spec.src;
 });
+
 function refreshCustomPortrait(){
   const c=CHARS[5], g=PORTRAITS[5].getContext('2d');
   g.clearRect(0,0,22,22);
@@ -1201,6 +1209,7 @@ function drawFighter(f){
   ctx.translate(Math.round(f.x),Math.round(f.y));
   ctx.scale(f.face,1);
   ctx.drawImage(img,-(S.w/2|0),-S.h+2);
+  drawTokenLogo(ctx,f.ch.id,-5,-23,10,9);
   ctx.restore();
   // respawn halo
   if(f.respawn>0){
@@ -1373,7 +1382,9 @@ function drawSelect(){
       const f=c.spr.frames.idle;
       const scale=Math.min(48/f.height,42/f.width);
       const dw=f.width*scale, dh=f.height*scale;
-      ctx.drawImage(f,x+SEL_W/2-dw/2,y+50-dh,dw,dh);
+      const dx=x+SEL_W/2-dw/2, dy=y+50-dh;
+      ctx.drawImage(f,dx,dy,dw,dh);
+      drawTokenLogo(ctx,c.id,dx+11*scale,dy+17*scale,10*scale,9*scale);
     } else {
       txt('?',x+SEL_W/2-5,y+14,'#ff2d55',16);
       txt('UPLOAD',x+SEL_W/2-18,y+34,'#889',5);
@@ -1407,9 +1418,11 @@ function drawSelect(){
     G.vsT++;
     ctx.fillStyle='rgba(4,4,14,.6)'; ctx.fillRect(0,0,VW,VH);
     const a=CHARS[G.selP1], b=CHARS[G.selP2];
-    if(a.spr) ctx.drawImage(a.spr.frames.idle,90,80,a.spr.frames.idle.width*2,a.spr.frames.idle.height*2);
+    if(a.spr){ ctx.drawImage(a.spr.frames.idle,90,80,a.spr.frames.idle.width*2,a.spr.frames.idle.height*2);
+      drawTokenLogo(ctx,a.id,112,114,20,18); }
     if(b.spr){ ctx.save(); ctx.translate(310,80); ctx.scale(-2,2);
-      ctx.drawImage(b.spr.frames.idle,-b.spr.frames.idle.width,0); ctx.restore(); }
+      ctx.drawImage(b.spr.frames.idle,-b.spr.frames.idle.width,0);
+      drawTokenLogo(ctx,b.id,-b.spr.frames.idle.width+11,17,10,9); ctx.restore(); }
     bigText('VS',VW/2,92,'#ffd23e','#a04',24);
     txt(a.name,92,66,a.col,7); txt(b.name,VW-92-b.name.length*7,66,b.col,7);
     ctext(G.vsAI?'P1  vs  CPU':'P1  vs  P2',160,'#9ab',7);
@@ -1435,8 +1448,9 @@ function drawTitle(){
   for(let i=0;i<5;i++){
     const c=CHARS[i], fpos=(G.t*0.5+i*90)%(VW+60)-30;
     if(!c.spr) continue;
-    const fr=c.spr.frames['run'+((G.t>>3)%4+1)];
-    ctx.drawImage(fr,fpos|0,VH-34);
+    const fr=c.spr.frames['run'+((G.t>>3)%4+1)], fy=VH-fr.height;
+    ctx.drawImage(fr,fpos|0,fy);
+    drawTokenLogo(ctx,c.id,(fpos|0)+11,fy+17,10,9);
   }
 }
 function drawEnd(){
@@ -1451,8 +1465,9 @@ function drawEnd(){
     ctext(who+(who==='YOU'?' TAKE IT':' TAKES IT'),78,'#9ab',5);
     if(w.spr){
       const f=w.spr.frames.victory||w.spr.frames.idle;
-      const hop=Math.abs(Math.sin(G.t*0.1))*6;
-      ctx.drawImage(f,VW/2-f.width,90-hop,f.width*2,f.height*2);
+      const hop=Math.abs(Math.sin(G.t*0.1))*6, fx=VW/2-f.width, fy=90-hop;
+      ctx.drawImage(f,fx,fy,f.width*2,f.height*2);
+      drawTokenLogo(ctx,w.ch.id,fx+22,fy+34,20,18);
     }
   } else {
     bigText('DRAW!',VW/2,50,'#ffd23e','#a04',20);
