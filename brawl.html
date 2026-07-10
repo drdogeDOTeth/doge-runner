@@ -1209,7 +1209,7 @@ function drawFighter(f){
   ctx.translate(Math.round(f.x),Math.round(f.y));
   ctx.scale(f.face,1);
   ctx.drawImage(img,-(S.w/2|0),-S.h+2);
-  drawTokenLogo(ctx,f.ch.id,-5,-23,10,9);
+  drawTokenLogo(ctx,f.ch.id,-5,-25,10,9);
   ctx.restore();
   // respawn halo
   if(f.respawn>0){
@@ -1384,7 +1384,7 @@ function drawSelect(){
       const dw=f.width*scale, dh=f.height*scale;
       const dx=x+SEL_W/2-dw/2, dy=y+50-dh;
       ctx.drawImage(f,dx,dy,dw,dh);
-      drawTokenLogo(ctx,c.id,dx+11*scale,dy+17*scale,10*scale,9*scale);
+      drawTokenLogo(ctx,c.id,dx+11*scale,dy+15*scale,10*scale,9*scale);
     } else {
       txt('?',x+SEL_W/2-5,y+14,'#ff2d55',16);
       txt('UPLOAD',x+SEL_W/2-18,y+34,'#889',5);
@@ -1419,10 +1419,10 @@ function drawSelect(){
     ctx.fillStyle='rgba(4,4,14,.6)'; ctx.fillRect(0,0,VW,VH);
     const a=CHARS[G.selP1], b=CHARS[G.selP2];
     if(a.spr){ ctx.drawImage(a.spr.frames.idle,90,80,a.spr.frames.idle.width*2,a.spr.frames.idle.height*2);
-      drawTokenLogo(ctx,a.id,112,114,20,18); }
+      drawTokenLogo(ctx,a.id,112,110,20,18); }
     if(b.spr){ ctx.save(); ctx.translate(310,80); ctx.scale(-2,2);
       ctx.drawImage(b.spr.frames.idle,-b.spr.frames.idle.width,0);
-      drawTokenLogo(ctx,b.id,-b.spr.frames.idle.width+11,17,10,9); ctx.restore(); }
+      drawTokenLogo(ctx,b.id,-b.spr.frames.idle.width+11,15,10,9); ctx.restore(); }
     bigText('VS',VW/2,92,'#ffd23e','#a04',24);
     txt(a.name,92,66,a.col,7); txt(b.name,VW-92-b.name.length*7,66,b.col,7);
     ctext(G.vsAI?'P1  vs  CPU':'P1  vs  P2',160,'#9ab',7);
@@ -1450,7 +1450,7 @@ function drawTitle(){
     if(!c.spr) continue;
     const fr=c.spr.frames['run'+((G.t>>3)%4+1)], fy=VH-fr.height;
     ctx.drawImage(fr,fpos|0,fy);
-    drawTokenLogo(ctx,c.id,(fpos|0)+11,fy+17,10,9);
+    drawTokenLogo(ctx,c.id,(fpos|0)+11,fy+15,10,9);
   }
 }
 function drawEnd(){
@@ -1467,7 +1467,7 @@ function drawEnd(){
       const f=w.spr.frames.victory||w.spr.frames.idle;
       const hop=Math.abs(Math.sin(G.t*0.1))*6, fx=VW/2-f.width, fy=90-hop;
       ctx.drawImage(f,fx,fy,f.width*2,f.height*2);
-      drawTokenLogo(ctx,w.ch.id,fx+22,fy+34,20,18);
+      drawTokenLogo(ctx,w.ch.id,fx+22,fy+30,20,18);
     }
   } else {
     bigText('DRAW!',VW/2,50,'#ffd23e','#a04',20);
